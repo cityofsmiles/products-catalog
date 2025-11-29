@@ -22,10 +22,13 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #edf2f7; }
         .filter-button { transition: background-color 0.15s; }
         .active-filter { background-color: #2c5282 !important; color: white !important; font-weight: 600; }
+        /* Modal Backdrop */
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.6); }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
+    <!-- Loading Spinner -->
     <div id="loading" class="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center z-50">
         <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -34,6 +37,7 @@
         <p class="mt-4 text-lg font-semibold text-gray-600">Loading TeXMathPro Catalog...</p>
     </div>
 
+    <!-- Error Message -->
     <div id="error-message" class="hidden fixed inset-0 bg-red-100 flex items-center justify-center z-50 p-6">
         <div class="bg-white p-6 rounded-lg shadow-xl border-2 border-red-500 max-w-lg">
             <h2 class="text-xl font-bold text-red-700 mb-3">Data Loading Error</h2>
@@ -44,15 +48,29 @@
     
     <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 hidden">
         
-        <!-- Header: Logo and Tagline -->
-        <header class="mb-8 text-center border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg">
-            <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block mx-auto hover:opacity-90 transition duration-150">
-                <img src="https://i.imgur.com/kiFfMas.jpeg" 
-                     alt="TeXMathPro Logo - Aesthetics-Oriented Math Materials" 
-                     class="w-48 md:w-64 mx-auto mb-3 h-auto"
-                     onerror="this.onerror=null; this.src='https://placehold.co/256x64/2C5282/ffffff?text=TeXMathPro'">
-            </a>
-            <p class="mt-2 text-xl text-gray-600 max-w-3xl mx-auto font-semibold">Professional, publication-quality digital materials for high school Math teachers.</p>
+        <!-- Header: Logo, Tagline, and Install Button -->
+        <header class="mb-8 border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg relative">
+            <div class="flex flex-col md:flex-row justify-between items-center px-4 pt-4 md:px-8">
+                <!-- Logo/Title Area -->
+                <div class="text-center md:text-left mb-4 md:mb-0">
+                    <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block hover:opacity-90 transition duration-150">
+                        <img src="https://i.imgur.com/kiFfMas.jpeg" 
+                             alt="TeXMathPro Logo - Aesthetics-Oriented Math Materials" 
+                             class="w-48 md:w-64 mx-auto h-auto"
+                             onerror="this.onerror=null; this.src='https://placehold.co/256x64/2C5282/ffffff?text=TeXMathPro'">
+                    </a>
+                    <p class="mt-2 text-md text-gray-600 max-w-3xl mx-auto font-semibold">Professional, publication-quality digital materials for high school Math teachers.</p>
+                </div>
+                
+                <!-- Install Button (Hidden until PWA prompt is ready) -->
+                <button id="installBtn" onclick="showInstallModal()" 
+                        class="hidden flex items-center gap-2 py-3 px-6 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-150 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-green-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Install App
+                </button>
+            </div>
         </header>
 
         <!-- Main Content Area: Filters and Products -->
@@ -103,6 +121,37 @@
                     <p class="mt-2 text-gray-500">Try adjusting your filters or clearing your search term.</p>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- INSTALL MODAL STRUCTURE (Hidden by Default) -->
+    <div id="installModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 modal-backdrop" onclick="if(event.target.id === 'installModal') hideInstallModal()">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform transition-all duration-300 ease-in-out">
+            
+            <div class="text-center">
+                <div class="text-blue-700 mx-auto w-12 h-12 mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Install TeXMathPro App</h3>
+                <p class="text-gray-600 mb-4">Add this catalog to your device's home screen for fast, offline access just like a native app!</p>
+            </div>
+            
+            <div class="space-y-4">
+                <button onclick="handleInstallClick()"
+                        class="w-full flex items-center justify-center gap-2 py-3 px-6 bg-blue-700 text-white font-bold rounded-lg shadow-md hover:bg-blue-800 transition duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Install Now
+                </button>
+
+                <button onclick="hideInstallModal()"
+                        class="w-full py-3 px-6 border border-gray-300 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-100 transition duration-150">
+                    Maybe Later
+                </button>
+            </div>
         </div>
     </div>
 
@@ -215,6 +264,7 @@
                 ProductType: null
             }
         };
+        let deferredPrompt = null; // Variable to store the PWA installation event
 
         // Configuration
         const SPREADSHEET_ID = '1LaJ0Hq7V-GPoCupAk-sm1i3e2k4cuEbRpo7eLKoJ9SQ';
@@ -516,6 +566,58 @@
                 });
             }
         }
+
+        // --- PWA INSTALLATION HANDLERS ---
+        
+        function showInstallModal() {
+            const modal = document.getElementById('installModal');
+            if (deferredPrompt) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+            }
+        }
+
+        function hideInstallModal() {
+            const modal = document.getElementById('installModal');
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        async function handleInstallClick() {
+            hideInstallModal();
+            if (deferredPrompt) {
+                // Show the browser's PWA install prompt
+                deferredPrompt.prompt();
+                
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                
+                console.log(`User response to the install prompt: ${outcome}`); 
+
+                // Reset prompt variable and hide button whether installed or declined
+                deferredPrompt = null; 
+                document.getElementById('installBtn').classList.add('hidden');
+            }
+        }
+
+        // Event listener to capture the browser's PWA installation prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the default browser prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later
+            deferredPrompt = e;
+            // Show our custom install button
+            document.getElementById('installBtn').classList.remove('hidden');
+            console.log('beforeinstallprompt captured and Install button shown.');
+        });
+
+        // Event listener if the app is successfully installed via the prompt
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            document.getElementById('installBtn').classList.add('hidden');
+            console.log('TeXMathPro PWA installed successfully!');
+        });
+
 
         // Initialize App
         document.addEventListener('DOMContentLoaded', () => {
