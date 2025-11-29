@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TeXMathPro Catalog</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
         .product-card { transition: all 0.3s ease; }
@@ -38,10 +38,14 @@
     
     <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 hidden">
         
-        <!-- Header -->
-        <header class="mb-8 text-center border-b border-gray-200 pb-6">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-900 tracking-tight">TeXMathPro Catalog</h1>
-            <p class="mt-2 text-xl text-gray-600 max-w-3xl mx-auto">Professional, publication-quality digital materials for high school Math teachers.</p>
+        <!-- Header: Logo and Tagline -->
+        <header class="mb-8 text-center border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg">
+            <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block mx-auto hover:opacity-90 transition duration-150">
+                <img src="https://drive.google.com/uc?export=view&id=1U3PgynOMOy6TrLRWuJdwW5_W2iRCf14-&sz=w400" 
+                     alt="TeXMathPro Logo - Aesthetics-Oriented Math Materials" 
+                     class="w-48 md:w-64 mx-auto mb-3 h-auto">
+            </a>
+            <p class="mt-2 text-xl text-gray-600 max-w-3xl mx-auto font-semibold">Professional, publication-quality digital materials for high school Math teachers.</p>
         </header>
 
         <!-- Main Content Area: Filters and Products -->
@@ -201,7 +205,7 @@
                             IsDiscounted: isDiscounted,
                             ProductPagePath: getCellValue(row, headerMap.ProductPagePath),
                             FilePath: getCellValue(row, headerMap.FilePath),
-                            ImageURL: getCellValue(row, headerMap.ImageURL) || `https://placehold.co/400x300/F56565/ffffff?text=${encodeURIComponent(getCellValue(row, headerMap.ProductTitle))}`,
+                            ImageURL: getCellValue(row, headerMap.ImageURL) || `https://placehold.co/400x300/4A5568/ffffff?text=${encodeURIComponent(getCellValue(row, headerMap.ProductTitle))}`,
                             InStock: String(getCellValue(row, headerMap.InStock)).toLowerCase() === 'true',
                             Tags: getCellValue(row, headerMap.Tags)
                         });
@@ -235,7 +239,8 @@
                         if (val.toLowerCase() === 'k') return 0;
                         if (val.toLowerCase() === 'p') return -1;
                         const parts = val.split('-');
-                        return parseInt(parts[0]) || Infinity; // Sort by starting number
+                        // Use parseInt and handle potential NaN from ranges (like '5-7') by prioritizing the first number
+                        return parseInt(parts[0]) || Infinity; 
                     };
                     return normalize(a) - normalize(b);
                 }
@@ -293,7 +298,9 @@
             renderProducts();
         }
 
-        function clearAllFilters() {
+        function clearAllFilters(event) {
+            if(event) event.preventDefault(); // Prevent default link behavior if called from the logo
+
             state.searchQuery = '';
             document.getElementById('search').value = '';
 
@@ -315,6 +322,7 @@
                 // 2. Filter by Search Query (Title and Tags)
                 const search = state.searchQuery;
                 if (search) {
+                    // Search in Title and Tags
                     const searchArea = `${product.ProductTitle} ${product.Tags}`.toLowerCase();
                     if (!searchArea.includes(search)) return false;
                 }
@@ -334,7 +342,7 @@
         // --- RENDERING LOGIC ---
 
         function renderProductCard(product) {
-            const isDiscounted = product.IsDiscounted;
+            const isDiscounted = product.IsDiscounted && product.PricePHPRegular > product.PricePHPDiscounted;
             const priceRegular = formatCurrency(product.PricePHPRegular);
             const priceDiscounted = formatCurrency(product.PricePHPDiscounted);
             
@@ -344,6 +352,9 @@
                 const percentage = Math.round(((product.PricePHPRegular - product.PricePHPDiscounted) / product.PricePHPRegular) * 100);
                 discountPercent = `${percentage}% OFF`;
             }
+
+            // Fallback for GradeLevel if it's empty
+            const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
 
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200">
@@ -356,13 +367,13 @@
 
                     <!-- Details Area -->
                     <div class="p-5">
-                        <h3 class="text-xl font-bold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
+                        <h3 class="text-xl font-extrabold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
                         
                         <!-- Metadata Chips -->
                         <div class="flex flex-wrap gap-2 mt-2 text-xs font-medium">
                             <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${product.Topic}</span>
                             <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${product.ProductType}</span>
-                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full">Grade ${product.GradeLevel}</span>
+                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${gradeText}</span>
                         </div>
 
                         <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
