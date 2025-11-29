@@ -41,11 +41,12 @@
         <!-- Header: Logo and Tagline -->
         <header class="mb-8 text-center border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg">
             <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block mx-auto hover:opacity-90 transition duration-150">
-                <!-- CORRECTED IMAGE URL for embedding/direct access -->
-                <img src="https://drive.google.com/uc?export=download&id=1U3PgynOMOy6TrLRWuJdwW5_W2iRCf14-" 
+                <!-- UPDATED: Using the reliable Imgur direct link for the logo -->
+                <img src="https://i.imgur.com/kiFfMas.jpeg" 
                      alt="TeXMathPro Logo - Aesthetics-Oriented Math Materials" 
                      class="w-48 md:w-64 mx-auto mb-3 h-auto"
-                     onerror="this.onerror=null; this.src='https://placehold.co/256x64/2C5282/ffffff?text=TeXMathPro'">
+                     onload="console.log('Logo loaded successfully!');"
+                     onerror="console.error('Logo failed to load from Imgur. Displaying placeholder.'); this.onerror=null; this.src='https://placehold.co/256x64/2C5282/ffffff?text=TeXMathPro'">
             </a>
             <p class="mt-2 text-xl text-gray-600 max-w-3xl mx-auto font-semibold">Professional, publication-quality digital materials for high school Math teachers.</p>
         </header>
