@@ -62,13 +62,13 @@
                     <p class="mt-2 text-md text-gray-600 max-w-3xl mx-auto font-semibold">Professional, publication-quality digital materials for high school Math teachers.</p>
                 </div>
                 
-                <!-- Install Button (Hidden until PWA prompt is ready) -->
+                <!-- Install Button (renamed to Bookmark This!) -->
                 <button id="installBtn" onclick="showInstallModal()" 
-                        class="hidden flex items-center gap-2 py-3 px-6 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-150 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-green-300">
+                        class="flex items-center gap-2 py-3 px-6 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-150 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-green-300">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
-                    Install App
+                    Bookmark This!
                 </button>
             </div>
         </header>
@@ -131,25 +131,25 @@
             <div class="text-center">
                 <div class="text-blue-700 mx-auto w-12 h-12 mb-3">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-900 mb-2">Install TeXMathPro App</h3>
-                <p class="text-gray-600 mb-4">Add this catalog to your device's home screen for fast, offline access just like a native app!</p>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Bookmark TeXMathPro Catalog</h3>
+                <p id="modal-instructions" class="text-gray-600 mb-4">Add this catalog to your device's home screen for fast, offline access just like a native app!</p>
             </div>
             
             <div class="space-y-4">
-                <button onclick="handleInstallClick()"
+                <button id="modal-install-button" onclick="handleInstallClick()"
                         class="w-full flex items-center justify-center gap-2 py-3 px-6 bg-blue-700 text-white font-bold rounded-lg shadow-md hover:bg-blue-800 transition duration-150">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                    Install Now
+                    Add to Home Screen
                 </button>
 
                 <button onclick="hideInstallModal()"
                         class="w-full py-3 px-6 border border-gray-300 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-100 transition duration-150">
-                    Maybe Later
+                    Cancel
                 </button>
             </div>
         </div>
@@ -167,21 +167,22 @@
             display: "standalone",
             background_color: "#f7fafc",
             theme_color: "#2c5282",
+            // UPDATED: Icons to use the user-provided JPEG URL
             icons: [
-                { src: "https://i.imgur.com/uywGOja.png", sizes: "192x192", type: "image/png" },
-                { src: "https://i.imgur.com/uywGOja.png", sizes: "512x512", type: "image/png" }
+                { src: "https://i.imgur.com/GnMzsoN.jpeg", sizes: "192x192", type: "image/jpeg" },
+                { src: "https://i.imgur.com/GnMzsoN.jpeg", sizes: "512x512", type: "image/jpeg" }
             ]
         };
 
         // 2. Service Worker Logic (as a string)
         const swScript = `
-            const CACHE_NAME = 'texmathpro-cache-v1';
+            const CACHE_NAME = 'texmathpro-cache-v2'; // Incrementing cache version to ensure new icon loads
             const urlsToCache = [
                 '/',
                 'https://cdn.tailwindcss.com',
                 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap',
-                // Logo for offline display
-                'https://i.imgur.com/uywGOja.png'
+                // UPDATED: Logo for offline display
+                'https://i.imgur.com/GnMzsoN.jpeg'
             ];
 
             self.addEventListener('install', (event) => {
@@ -239,7 +240,8 @@
                 const swBlob = new Blob([swScript], { type: 'application/javascript' });
                 const swURL = URL.createObjectURL(swBlob);
                 
-                navigator.serviceWorker.register(swURL, { scope: '/' })
+                // Use { type: 'module' } if ES modules are used in SW, but we stick to classic for compatibility
+                navigator.serviceWorker.register(swURL, { scope: '/' }) 
                 .then((registration) => {
                     console.log('Service Worker registered with scope:', registration.scope);
                 })
@@ -256,6 +258,7 @@
 
         // Global State
         let allProducts = [];
+        let deferredPrompt = null; // Variable to store the PWA installation event
         let state = {
             searchQuery: '',
             filters: {
@@ -264,7 +267,6 @@
                 ProductType: null
             }
         };
-        let deferredPrompt = null; // Variable to store the PWA installation event
 
         // Configuration
         const SPREADSHEET_ID = '1LaJ0Hq7V-GPoCupAk-sm1i3e2k4cuEbRpo7eLKoJ9SQ';
@@ -571,10 +573,33 @@
         
         function showInstallModal() {
             const modal = document.getElementById('installModal');
+            const instructions = document.getElementById('modal-instructions');
+            const installButton = document.getElementById('modal-install-button');
+            const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            installButton.classList.remove('hidden');
+            installButton.textContent = 'Add to Home Screen';
+            installButton.classList.remove('bg-gray-500', 'cursor-not-allowed');
+            installButton.classList.add('bg-blue-700', 'hover:bg-blue-800');
+
             if (deferredPrompt) {
-                modal.classList.remove('hidden');
-                document.body.classList.add('overflow-hidden');
+                // PWA prompt is ready (Chromium/Firefox)
+                instructions.innerHTML = 'Click "Add to Home Screen" to save this catalog as an app on your device for fast, offline access.';
+            } else if (isiOS) {
+                // iOS/Safari requires manual steps
+                instructions.innerHTML = '<strong>On iOS/Safari:</strong> Tap the <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline align-text-top" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> <strong>Share Icon</strong> in your browser, then select <strong>"Add to Home Screen"</strong>.';
+                installButton.classList.add('hidden'); // Hide the programmatic button since it won't work
+            } else {
+                // Generic fallback for browsers that don't support or haven't triggered the prompt
+                instructions.innerHTML = 'Your browser may not support programmatic installation yet. If you are on a mobile device, check your browser menu for an "Add to Home Screen" option.';
+                // We keep the button visible but make it passive to prevent misleading clicks
+                installButton.textContent = 'Installation Not Ready';
+                installButton.classList.remove('bg-blue-700', 'hover:bg-blue-800');
+                installButton.classList.add('bg-gray-500', 'cursor-not-allowed');
             }
+            
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
         }
 
         function hideInstallModal() {
@@ -584,8 +609,8 @@
         }
 
         async function handleInstallClick() {
-            hideInstallModal();
             if (deferredPrompt) {
+                hideInstallModal();
                 // Show the browser's PWA install prompt
                 deferredPrompt.prompt();
                 
@@ -596,7 +621,9 @@
 
                 // Reset prompt variable and hide button whether installed or declined
                 deferredPrompt = null; 
-                document.getElementById('installBtn').classList.add('hidden');
+            } else {
+                // If the user clicks the grayed-out button on unsupported/unready browsers, do nothing.
+                console.warn('PWA prompt is not ready to be displayed yet.');
             }
         }
 
@@ -606,15 +633,15 @@
             e.preventDefault();
             // Stash the event so it can be triggered later
             deferredPrompt = e;
-            // Show our custom install button
-            document.getElementById('installBtn').classList.remove('hidden');
-            console.log('beforeinstallprompt captured and Install button shown.');
+            console.log('beforeinstallprompt captured.');
+            // Note: The button is visible by default now.
         });
 
         // Event listener if the app is successfully installed via the prompt
         window.addEventListener('appinstalled', () => {
             deferredPrompt = null;
-            document.getElementById('installBtn').classList.add('hidden');
+            // Optionally, hide the install button if the app is already installed
+            // document.getElementById('installBtn').classList.add('hidden'); 
             console.log('TeXMathPro PWA installed successfully!');
         });
 
