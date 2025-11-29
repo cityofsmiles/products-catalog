@@ -79,10 +79,10 @@
         
         <header class="mb-8 border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg relative">
             
-            <div class="absolute top-4 right-4 md:top-6 md:right-8 z-10">
-                <button id="pwa-install-btn" class="hidden flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-all transform hover:scale-105 font-bold text-sm">
+            <div class="absolute top-4 right-4 md:top-6 md:right-8 z-20">
+                <button id="pwa-install-btn" class="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-md transition-all transform hover:scale-105 font-bold text-sm">
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                    <span>Bookmark App</span>
+                    <span>Bookmark This!</span>
                 </button>
             </div>
 
@@ -215,35 +215,29 @@
         // Check if running in standalone mode (already installed)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
+        // If already installed, we HIDE the button. Otherwise it is visible.
+        if (isStandalone) {
+            installBtn.style.display = 'none';
+        }
+
         // Detect iOS
         const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-        // 1. Android / Desktop Chrome Logic
+        // 1. Capture the Chrome/Edge install event
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             deferredPrompt = e;
-            // Show the button only if not already installed
-            if(!isStandalone) {
-                installBtn.classList.remove('hidden');
-            }
+            console.log("PWA install event captured.");
         });
 
-        // 2. iOS Logic (Manual Detection)
-        if (isIos && !isStandalone) {
-            // iOS doesn't fire beforeinstallprompt, so we forcefully show the button
-            installBtn.classList.remove('hidden');
-        }
-
-        // 3. Button Click Handler
+        // 2. Button Click Handler
         installBtn.addEventListener('click', () => {
             if (deferredPrompt) {
-                // Scenario A: Android/Desktop - Use native prompt
+                // Scenario A: Android/Desktop Chrome - Use native prompt
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
-                        installBtn.classList.add('hidden');
+                        installBtn.style.display = 'none';
                     }
                     deferredPrompt = null;
                 });
@@ -251,8 +245,8 @@
                 // Scenario B: iOS - Show instructions
                 iosModal.classList.remove('hidden');
             } else {
-                // Scenario C: Fallback (Instructions for unknown browsers)
-                alert("To bookmark this app, please use your browser's menu to 'Add to Home Screen' or 'Install App'.");
+                // Scenario C: Fallback (Instructions for Firefox/Safari/Others)
+                alert("To bookmark this app:\n\nDesktop: Press Ctrl + D (or Cmd + D).\nMobile: Tap your browser menu and select 'Add to Home Screen' or 'Install App'.");
             }
         });
 
@@ -474,23 +468,6 @@
                     </div>
                 </div>
             `;
-        }
-
-        function renderProducts() {
-            const filteredProducts = filterProducts();
-            const listContainer = document.getElementById('product-list');
-            const noResults = document.getElementById('no-results');
-            
-            listContainer.innerHTML = '';
-
-            if (filteredProducts.length === 0) {
-                noResults.classList.remove('hidden');
-            } else {
-                noResults.classList.add('hidden');
-                filteredProducts.forEach(product => {
-                    listContainer.innerHTML += renderProductCard(product);
-                });
-            }
         }
 
         document.addEventListener('DOMContentLoaded', fetchProducts);
