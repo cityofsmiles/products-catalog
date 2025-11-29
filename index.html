@@ -6,6 +6,12 @@
     <title>TeXMathPro Catalog</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- PWA Setup (Implemented via JavaScript blobs below to adhere to single-file constraint) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="theme-color" content="#2c5282">
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
         .product-card { transition: all 0.3s ease; }
@@ -41,12 +47,10 @@
         <!-- Header: Logo and Tagline -->
         <header class="mb-8 text-center border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg">
             <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block mx-auto hover:opacity-90 transition duration-150">
-                <!-- UPDATED: Using the reliable Imgur direct link for the logo -->
                 <img src="https://i.imgur.com/kiFfMas.jpeg" 
                      alt="TeXMathPro Logo - Aesthetics-Oriented Math Materials" 
                      class="w-48 md:w-64 mx-auto mb-3 h-auto"
-                     onload="console.log('Logo loaded successfully!');"
-                     onerror="console.error('Logo failed to load from Imgur. Displaying placeholder.'); this.onerror=null; this.src='https://placehold.co/256x64/2C5282/ffffff?text=TeXMathPro'">
+                     onerror="this.onerror=null; this.src='https://placehold.co/256x64/2C5282/ffffff?text=TeXMathPro'">
             </a>
             <p class="mt-2 text-xl text-gray-600 max-w-3xl mx-auto font-semibold">Professional, publication-quality digital materials for high school Math teachers.</p>
         </header>
@@ -103,6 +107,104 @@
     </div>
 
     <script>
+        // --- PWA SETUP: Manifest and Service Worker ---
+
+        // 1. PWA Manifest Data
+        const manifestData = {
+            name: "TeXMathPro Catalog",
+            short_name: "TeXMathPro",
+            description: "Publication-quality math materials catalog.",
+            start_url: ".",
+            display: "standalone",
+            background_color: "#f7fafc",
+            theme_color: "#2c5282",
+            icons: [
+                { src: "https://i.imgur.com/uywGOja.png", sizes: "192x192", type: "image/png" },
+                { src: "https://i.imgur.com/uywGOja.png", sizes: "512x512", type: "image/png" }
+            ]
+        };
+
+        // 2. Service Worker Logic (as a string)
+        const swScript = `
+            const CACHE_NAME = 'texmathpro-cache-v1';
+            const urlsToCache = [
+                '/',
+                'https://cdn.tailwindcss.com',
+                'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap',
+                // Logo for offline display
+                'https://i.imgur.com/uywGOja.png'
+            ];
+
+            self.addEventListener('install', (event) => {
+              event.waitUntil(
+                caches.open(CACHE_NAME)
+                  .then((cache) => {
+                    console.log('SW: Opened cache, attempting to cache core assets.');
+                    return cache.addAll(urlsToCache).catch(err => {
+                        console.error('SW: Failed to cache some assets.', err);
+                    });
+                  })
+              );
+            });
+
+            self.addEventListener('fetch', (event) => {
+                // IMPORTANT: Do NOT cache the live spreadsheet data (docs.google.com/spreadsheets)
+                // Always try to fetch live data from the network.
+                if (event.request.url.includes('docs.google.com/spreadsheets')) {
+                    return fetch(event.request);
+                }
+
+                // For static assets, try cache first, then network
+                event.respondWith(
+                    caches.match(event.request)
+                        .then((response) => {
+                            // Cache hit - return response
+                            if (response) {
+                                return response;
+                            }
+                            // No match in cache - go to network
+                            return fetch(event.request);
+                        })
+                );
+            });
+        `;
+
+        // 3. PWA Registration Functions
+
+        function generateManifest() {
+            try {
+                const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+                const manifestURL = URL.createObjectURL(manifestBlob);
+                const linkElement = document.createElement('link');
+                linkElement.rel = 'manifest';
+                linkElement.href = manifestURL;
+                document.head.appendChild(linkElement);
+                console.log('PWA Manifest registered successfully.');
+            } catch (e) {
+                console.error('Failed to register PWA Manifest.', e);
+            }
+        }
+
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                const swBlob = new Blob([swScript], { type: 'application/javascript' });
+                const swURL = URL.createObjectURL(swBlob);
+                
+                navigator.serviceWorker.register(swURL, { scope: '/' })
+                .then((registration) => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch((error) => {
+                    console.error('Service Worker registration failed:', error);
+                });
+            } else {
+                console.warn('Service Workers are not supported in this browser.');
+            }
+        }
+
+
+        // --- APPLICATION LOGIC ---
+
         // Global State
         let allProducts = [];
         let state = {
@@ -415,9 +517,14 @@
             }
         }
 
-        // Initialize App on load
-        window.onload = fetchProducts;
-
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            // Register PWA components first
+            generateManifest();
+            registerServiceWorker(); 
+            // Then fetch the dynamic data
+            fetchProducts();
+        });
     </script>
 </body>
 </html>
