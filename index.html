@@ -12,6 +12,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="theme-color" content="#2c5282">
 
+    <!-- Google Analytics GA4 Tracking Snippet -->
+    <!-- YOUR ACTUAL MEASUREMENT ID IS NOW INSTALLED: G-0BXPTH0XNR -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0BXPTH0XNR"></script>
+    <script>
+      // Initialize dataLayer globally
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    </script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
         .product-card { transition: all 0.3s ease; }
@@ -71,7 +81,7 @@
                 
                 <div class="mb-6">
                     <label for="search" class="block text-sm font-medium text-gray-700 mb-2">Search Keywords (Tags/Title)</label>
-                    <input type="text" id="search" placeholder="Search Summative test, quiz, grade 8..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <input type="text" id="search" placeholder="Search calculus, quiz, 8th grade..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 
                 <div class="space-y-6">
@@ -237,6 +247,17 @@
         const SPREADSHEET_ID = '1LaJ0Hq7V-GPoCupAk-sm1i3e2k4cuEbRpo7eLKoJ9SQ';
         const GID = 0; 
         const GOOGLE_VIZ_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`;
+        
+        // GA4 Configuration - Measurement ID is now G-0BXPTH0XNR
+        const GA_MEASUREMENT_ID = 'G-0BXPTH0XNR'; 
+
+        // Utility to safely track events
+        function trackEvent(eventName, params = {}) {
+            // Check for gtag function existence and non-placeholder ID
+            if (typeof gtag === 'function' && GA_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {
+                gtag('event', eventName, params);
+            }
+        }
 
         // Utility function to format PHP currency
         const formatCurrency = (amount) => {
@@ -275,6 +296,16 @@
 
                 const jsonString = text.substring(47, text.length - 2);
                 const data = JSON.parse(jsonString);
+
+                // Initialize GA config after data load (acts as a page view event)
+                if (typeof gtag === 'function' && GA_MEASUREMENT_ID !== 'G-XXXXXXXXXX') {
+                    // Send page view and configuration signal
+                    gtag('config', GA_MEASUREMENT_ID, {
+                        'page_title': 'Catalog Viewer',
+                        'page_path': '/',
+                        'send_page_view': true 
+                    });
+                }
 
                 if (!data || !data.table || !data.table.rows || data.table.rows.length === 0) {
                      throw new Error('No data table found in sheet response.');
@@ -429,11 +460,25 @@
                 state.filters[field] = value;
                 event.target.classList.add('active-filter');
             }
+            
+            // GA Tracking
+            trackEvent('filter_used', {
+                filter_category: field,
+                filter_value: isActive ? 'cleared' : value,
+                action: isActive ? 'clear' : 'set'
+            });
+
             renderProducts();
         }
         
         function handleSearchInput(event) {
             state.searchQuery = event.target.value.toLowerCase().trim();
+            
+            // GA Tracking (debounce for heavy typing is optional but good practice)
+            trackEvent('search', {
+                search_term: state.searchQuery,
+            });
+
             renderProducts();
         }
 
@@ -450,6 +495,10 @@
             };
             
             Object.values(document.querySelectorAll('.filter-button')).forEach(btn => btn.classList.remove('active-filter'));
+            
+            // GA Tracking
+            trackEvent('filters_cleared');
+
             renderProducts();
         }
 
