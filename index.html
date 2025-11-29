@@ -176,13 +176,13 @@
 
         // 2. Service Worker Logic (as a string)
         const swScript = `
-            const CACHE_NAME = 'texmathpro-cache-v2'; // Incrementing cache version to ensure new icon loads
+            const CACHE_NAME = 'texmathpro-cache-v2'; 
             const urlsToCache = [
                 '/',
                 'https://cdn.tailwindcss.com',
                 'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap',
-                // UPDATED: Logo for offline display
-                'https://i.imgur.com/GnMzsoN.jpeg'
+                'https://i.imgur.com/kiFfMas.jpeg', // Logo
+                'https://i.imgur.com/GnMzsoN.jpeg' // Icon
             ];
 
             self.addEventListener('install', (event) => {
@@ -199,7 +199,6 @@
 
             self.addEventListener('fetch', (event) => {
                 // IMPORTANT: Do NOT cache the live spreadsheet data (docs.google.com/spreadsheets)
-                // Always try to fetch live data from the network.
                 if (event.request.url.includes('docs.google.com/spreadsheets')) {
                     return fetch(event.request);
                 }
@@ -208,11 +207,9 @@
                 event.respondWith(
                     caches.match(event.request)
                         .then((response) => {
-                            // Cache hit - return response
                             if (response) {
                                 return response;
                             }
-                            // No match in cache - go to network
                             return fetch(event.request);
                         })
                 );
@@ -240,7 +237,7 @@
                 const swBlob = new Blob([swScript], { type: 'application/javascript' });
                 const swURL = URL.createObjectURL(swBlob);
                 
-                // Use { type: 'module' } if ES modules are used in SW, but we stick to classic for compatibility
+                // Use { scope: '/' } for app-wide scope
                 navigator.serviceWorker.register(swURL, { scope: '/' }) 
                 .then((registration) => {
                     console.log('Service Worker registered with scope:', registration.scope);
@@ -253,12 +250,19 @@
             }
         }
 
+        // --- PWA TIMING FIX: REGISTER IMMEDIATELY ---
+        // We MUST register the PWA components before DOMContentLoaded fires 
+        // to catch the 'beforeinstallprompt' event.
+        generateManifest();
+        registerServiceWorker(); 
+        // --- END PWA TIMING FIX ---
+
 
         // --- APPLICATION LOGIC ---
 
         // Global State
         let allProducts = [];
-        let deferredPrompt = null; // Variable to store the PWA installation event
+        let deferredPrompt = null; 
         let state = {
             searchQuery: '',
             filters: {
@@ -270,7 +274,7 @@
 
         // Configuration
         const SPREADSHEET_ID = '1LaJ0Hq7V-GPoCupAk-sm1i3e2k4cuEbRpo7eLKoJ9SQ';
-        const GID = 0; // Assuming data is on the first sheet
+        const GID = 0; 
         const GOOGLE_VIZ_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`;
 
         // Utility function to format PHP currency
@@ -284,10 +288,8 @@
             const cell = row.c[columnIndex];
             if (!cell) return '';
 
-            // Handle formatted value (v) or string value (f)
             if (cell.f !== undefined) return String(cell.f).trim();
             if (cell.v !== undefined) {
-                // Special handling for boolean values (IsDiscounted, InStock)
                 if (typeof cell.v === 'boolean') return cell.v;
                 if (typeof cell.v === 'number' && cell.v !== null) return cell.v;
                 return String(cell.v).trim();
@@ -301,7 +303,6 @@
                 const response = await fetch(GOOGLE_VIZ_URL);
                 const text = await response.text();
 
-                // Google's GViz format is a JS wrapper, so we need to extract the JSON payload
                 const jsonString = text.substring(47, text.length - 2);
                 const data = JSON.parse(jsonString);
 
@@ -312,7 +313,6 @@
                 const cols = data.table.cols.map(c => c.label);
                 const products = [];
 
-                // Map the column labels to a known index for robust data retrieval
                 const headerMap = {
                     ProductID: cols.indexOf('ProductID'),
                     ProductTitle: cols.indexOf('ProductTitle'),
@@ -330,9 +330,7 @@
                     Tags: cols.indexOf('Tags')
                 };
                 
-                // Process rows, starting after the header row (index 0)
                 data.table.rows.forEach(row => {
-                    // Check if all essential columns exist before processing
                     if (headerMap.ProductTitle === -1 || headerMap.PricePHPRegular === -1 || headerMap.ProductPagePath === -1) {
                          console.error("Missing essential column headers. Check your Google Sheet structure.");
                          return;
@@ -348,7 +346,6 @@
                     const discountedPrice = typeof discountedPriceRaw === 'number' ? discountedPriceRaw : parseFloat(discountedPriceRaw) || regularPrice;
 
 
-                    // Check if product is valid (has a title and price)
                     if (getCellValue(row, headerMap.ProductTitle) && regularPrice > 0) {
                          products.push({
                             ProductID: getCellValue(row, headerMap.ProductID),
@@ -371,7 +368,6 @@
 
                 allProducts = products;
                 
-                // Initialize filters and render once data is ready
                 initFilters();
                 renderProducts();
 
@@ -384,19 +380,16 @@
             }
         }
 
-        // --- FILTERING LOGIC ---
+        // --- FILTERING LOGIC (No changes needed here) ---
 
         function getUniqueValues(field) {
             const values = allProducts.map(p => p[field]).filter(Boolean);
             const unique = [...new Set(values)].sort((a, b) => {
-                // Custom sort for GradeLevel to handle ranges and K/P
                 if (field === 'GradeLevel') {
-                    // Normalize K/P for sorting (e.g., K=0, P=-1)
                     const normalize = (val) => {
                         if (val.toLowerCase() === 'k') return 0;
                         if (val.toLowerCase() === 'p') return -1;
                         const parts = val.split('-');
-                        // Use parseInt and handle potential NaN from ranges (like '5-7') by prioritizing the first number
                         return parseInt(parts[0]) || Infinity; 
                     };
                     return normalize(a) - normalize(b);
@@ -409,7 +402,7 @@
         function initFilters() {
             ['GradeLevel', 'Topic', 'ProductType'].forEach(field => {
                 const container = document.getElementById(`filter-${field.toLowerCase().replace(/path|id/g, '')}`);
-                if (!container) return; // Guard clause
+                if (!container) return; 
 
                 const values = getUniqueValues(field);
                 
@@ -436,14 +429,11 @@
             const { field, value } = event.target.dataset;
             const isActive = event.target.classList.contains('active-filter');
             
-            // Clear existing filter for this category
             Object.values(document.querySelectorAll(`[data-field="${field}"]`)).forEach(btn => btn.classList.remove('active-filter'));
 
             if (isActive) {
-                // Remove filter
                 state.filters[field] = null;
             } else {
-                // Apply new filter
                 state.filters[field] = value;
                 event.target.classList.add('active-filter');
             }
@@ -456,7 +446,7 @@
         }
 
         function clearAllFilters(event) {
-            if(event) event.preventDefault(); // Prevent default link behavior if called from the logo
+            if(event) event.preventDefault(); 
 
             state.searchQuery = '';
             document.getElementById('search').value = '';
@@ -473,18 +463,14 @@
 
         function filterProducts() {
             return allProducts.filter(product => {
-                // 1. Filter by InStock (optional, but good practice)
                 if (!product.InStock) return false;
                 
-                // 2. Filter by Search Query (Title and Tags)
                 const search = state.searchQuery;
                 if (search) {
-                    // Search in Title and Tags
                     const searchArea = `${product.ProductTitle} ${product.Tags}`.toLowerCase();
                     if (!searchArea.includes(search)) return false;
                 }
 
-                // 3. Filter by Selected Filters
                 for (const field in state.filters) {
                     const filterValue = state.filters[field];
                     if (filterValue && product[field] !== filterValue) {
@@ -496,21 +482,19 @@
             });
         }
 
-        // --- RENDERING LOGIC ---
+        // --- RENDERING LOGIC (No changes needed here) ---
 
         function renderProductCard(product) {
             const isDiscounted = product.IsDiscounted && product.PricePHPRegular > product.PricePHPDiscounted;
             const priceRegular = formatCurrency(product.PricePHPRegular);
             const priceDiscounted = formatCurrency(product.PricePHPDiscounted);
             
-            // Calculate discount percentage
             let discountPercent = '';
             if (isDiscounted && product.PricePHPRegular > 0) {
                 const percentage = Math.round(((product.PricePHPRegular - product.PricePHPDiscounted) / product.PricePHPRegular) * 100);
                 discountPercent = `${percentage}% OFF`;
             }
 
-            // Fallback for GradeLevel if it's empty
             const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
 
             return `
@@ -569,7 +553,7 @@
             }
         }
 
-        // --- PWA INSTALLATION HANDLERS ---
+        // --- PWA INSTALLATION HANDLERS (No changes needed here) ---
         
         function showInstallModal() {
             const modal = document.getElementById('installModal');
@@ -583,16 +567,12 @@
             installButton.classList.add('bg-blue-700', 'hover:bg-blue-800');
 
             if (deferredPrompt) {
-                // PWA prompt is ready (Chromium/Firefox)
                 instructions.innerHTML = 'Click "Add to Home Screen" to save this catalog as an app on your device for fast, offline access.';
             } else if (isiOS) {
-                // iOS/Safari requires manual steps
                 instructions.innerHTML = '<strong>On iOS/Safari:</strong> Tap the <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline align-text-top" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> <strong>Share Icon</strong> in your browser, then select <strong>"Add to Home Screen"</strong>.';
-                installButton.classList.add('hidden'); // Hide the programmatic button since it won't work
+                installButton.classList.add('hidden'); 
             } else {
-                // Generic fallback for browsers that don't support or haven't triggered the prompt
                 instructions.innerHTML = 'Your browser may not support programmatic installation yet. If you are on a mobile device, check your browser menu for an "Add to Home Screen" option.';
-                // We keep the button visible but make it passive to prevent misleading clicks
                 installButton.textContent = 'Installation Not Ready';
                 installButton.classList.remove('bg-blue-700', 'hover:bg-blue-800');
                 installButton.classList.add('bg-gray-500', 'cursor-not-allowed');
@@ -611,47 +591,36 @@
         async function handleInstallClick() {
             if (deferredPrompt) {
                 hideInstallModal();
-                // Show the browser's PWA install prompt
                 deferredPrompt.prompt();
                 
-                // Wait for the user to respond to the prompt
                 const { outcome } = await deferredPrompt.userChoice;
                 
                 console.log(`User response to the install prompt: ${outcome}`); 
 
-                // Reset prompt variable and hide button whether installed or declined
                 deferredPrompt = null; 
             } else {
-                // If the user clicks the grayed-out button on unsupported/unready browsers, do nothing.
                 console.warn('PWA prompt is not ready to be displayed yet.');
             }
         }
 
         // Event listener to capture the browser's PWA installation prompt
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the default browser prompt
             e.preventDefault();
-            // Stash the event so it can be triggered later
             deferredPrompt = e;
-            console.log('beforeinstallprompt captured.');
-            // Note: The button is visible by default now.
+            console.log('beforeinstallprompt captured. Deferred prompt ready.');
+            // This is where you would typically show a custom install UI
         });
 
         // Event listener if the app is successfully installed via the prompt
         window.addEventListener('appinstalled', () => {
             deferredPrompt = null;
-            // Optionally, hide the install button if the app is already installed
-            // document.getElementById('installBtn').classList.add('hidden'); 
             console.log('TeXMathPro PWA installed successfully!');
         });
 
 
         // Initialize App
         document.addEventListener('DOMContentLoaded', () => {
-            // Register PWA components first
-            generateManifest();
-            registerServiceWorker(); 
-            // Then fetch the dynamic data
+            // Fetch the dynamic data and render UI
             fetchProducts();
         });
     </script>
