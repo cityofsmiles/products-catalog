@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TeXMathPro Catalog</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- PWA Setup (Implemented via JavaScript blobs below to adhere to single-file constraint) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -46,7 +46,7 @@
     
     <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 hidden">
         
-        <!-- Header: Logo and Tagline (Install button removed) -->
+        <!-- Header: Logo and Tagline -->
         <header class="mb-8 border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg relative">
             <div class="flex flex-col md:flex-row justify-center items-center px-4 pt-4 md:px-8">
                 <!-- Logo/Title Area -->
@@ -115,7 +115,6 @@
 
     <script>
         // --- PWA SETUP: Manifest and Service Worker ---
-        // Keeping this allows for manual PWA installation via the browser menu.
 
         // 1. PWA Manifest Data
         const manifestData = {
@@ -225,8 +224,6 @@
         // Global State
         let allProducts = [];
         
-        // Removed deferredPrompt and related PWA installation handlers.
-
         let state = {
             searchQuery: '',
             filters: {
@@ -260,6 +257,15 @@
             }
             return '';
         };
+        
+        // NEW UTILITY: Finds the column index by checking common label variations.
+        const findColumnIndex = (cols, potentialLabels) => {
+            for (const label of potentialLabels) {
+                const index = cols.indexOf(label);
+                if (index !== -1) return index;
+            }
+            return -1;
+        };
 
         // Data Fetching and Processing
         async function fetchProducts() {
@@ -277,26 +283,28 @@
                 const cols = data.table.cols.map(c => c.label);
                 const products = [];
 
+                // UPDATED headerMap: using findColumnIndex for flexibility
                 const headerMap = {
-                    ProductID: cols.indexOf('ProductID'),
-                    ProductTitle: cols.indexOf('ProductTitle'),
-                    GradeLevel: cols.indexOf('GradeLevel'),
-                    Topic: cols.indexOf('Topic'),
-                    ProductType: cols.indexOf('ProductType'),
-                    ShortDescription: cols.indexOf('ShortDescription'),
-                    PricePHPRegular: cols.indexOf('PricePHPRegular'),
-                    PricePHPDiscounted: cols.indexOf('PricePHPDiscounted'),
-                    IsDiscounted: cols.indexOf('IsDiscounted'),
-                    ProductPagePath: cols.indexOf('ProductPagePath'),
-                    FilePath: cols.indexOf('FilePath'),
-                    ImageURL: cols.indexOf('ImageURL'),
-                    InStock: cols.indexOf('InStock'),
-                    Tags: cols.indexOf('Tags')
+                    ProductID: findColumnIndex(cols, ['ProductID', 'Product ID']),
+                    ProductTitle: findColumnIndex(cols, ['ProductTitle', 'Product Title', 'Title']),
+                    GradeLevel: findColumnIndex(cols, ['GradeLevel', 'Grade Level', 'Grade']),
+                    Topic: findColumnIndex(cols, ['Topic']), 
+                    ProductType: findColumnIndex(cols, ['ProductType', 'Product Type', 'Resource Type']), // Added Resource Type
+                    ShortDescription: findColumnIndex(cols, ['ShortDescription', 'Short Description', 'Description']),
+                    PricePHPRegular: findColumnIndex(cols, ['PricePHPRegular', 'Price PHP Regular', 'Price']),
+                    PricePHPDiscounted: findColumnIndex(cols, ['PricePHPDiscounted', 'Price PHP Discounted', 'Discounted Price']),
+                    IsDiscounted: findColumnIndex(cols, ['IsDiscounted', 'Is Discounted']),
+                    ProductPagePath: findColumnIndex(cols, ['ProductPagePath', 'Product Page Path']),
+                    FilePath: findColumnIndex(cols, ['FilePath', 'File Path']),
+                    ImageURL: findColumnIndex(cols, ['ImageURL', 'Image URL']),
+                    InStock: findColumnIndex(cols, ['InStock', 'In Stock']),
+                    Tags: findColumnIndex(cols, ['Tags'])
                 };
                 
                 data.table.rows.forEach(row => {
+                    // Check if essential columns were found
                     if (headerMap.ProductTitle === -1 || headerMap.PricePHPRegular === -1 || headerMap.ProductPagePath === -1) {
-                         console.error("Missing essential column headers. Check your Google Sheet structure.");
+                         console.error("Missing essential column headers. Check your Google Sheet structure and ensure titles like 'ProductTitle', 'PricePHPRegular', and 'ProductPagePath' (or variations) exist.");
                          return;
                     }
 
@@ -364,14 +372,34 @@
         }
 
         function initFilters() {
-            ['GradeLevel', 'Topic', 'ProductType'].forEach(field => {
-                const container = document.getElementById(`filter-${field.toLowerCase().replace(/path|id/g, '')}`);
-                if (!container) return; 
+            // New structure to correctly map the data field name to the HTML ID
+            const filterMap = [
+                { field: 'GradeLevel', id: 'filter-grade-level' },
+                { field: 'Topic', id: 'filter-topic' },
+                { field: 'ProductType', id: 'filter-product-type' }
+            ];
+
+            filterMap.forEach(({ field, id }) => {
+                // FIX 1: Use the correct, hyphenated HTML ID
+                const container = document.getElementById(id);
+                if (!container) {
+                    console.warn(`Filter container not found for ID: ${id}`);
+                    return;
+                } 
 
                 const values = getUniqueValues(field);
                 
+                // Ensure we only proceed if there are actual unique values
+                if (values.length === 0) return; 
+
+                // Clear any previous buttons, but keep the H3 title
+                const existingButtonContainer = container.querySelector('.filter-button-container');
+                if (existingButtonContainer) {
+                    existingButtonContainer.remove();
+                }
+
                 const buttonContainer = document.createElement('div');
-                buttonContainer.className = 'flex flex-wrap gap-2';
+                buttonContainer.className = 'flex flex-wrap gap-2 filter-button-container';
 
                 values.forEach(value => {
                     const button = document.createElement('button');
