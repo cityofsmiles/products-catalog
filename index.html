@@ -60,7 +60,8 @@
         <header class="mb-8 border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg relative">
             <div class="flex flex-col md:flex-row justify-center items-center px-4 pt-4 md:px-8">
                 <!-- Logo/Title Area -->
-                <div class="text-center md:text-left mb-4 md:mb-0">
+                <!-- FIX: Removed 'md:text-left' to ensure content is centered on all screen sizes -->
+                <div class="text-center mb-4 md:mb-0"> 
                     <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block hover:opacity-90 transition duration-150">
                         <img src="https://i.imgur.com/kiFfMas.jpeg" 
                              alt="TeXMathPro Logo - Aesthetics-Oriented Math Materials" 
