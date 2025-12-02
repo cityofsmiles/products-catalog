@@ -7,10 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- PWA Setup (Implemented via JavaScript blobs below to adhere to single-file constraint) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="theme-color" content="#2c5282">
 
+    <!-- Google Analytics GA4 Tracking Snippet -->
+    <!-- YOUR ACTUAL MEASUREMENT ID IS NOW INSTALLED: G-0BXPTH0XNR -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-0BXPTH0XNR"></script>
     <script>
       // Initialize dataLayer globally
@@ -29,12 +32,11 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #edf2f7; }
         .filter-button { transition: background-color 0.15s; }
         .active-filter { background-color: #2c5282 !important; color: white !important; font-weight: 600; }
-        /* FREEBIE specific style */
-        .freebie-card { border: 3px solid #f97316; } /* Orange border for emphasis */
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
+    <!-- Loading Spinner -->
     <div id="loading" class="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center z-50">
         <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -43,6 +45,7 @@
         <p class="mt-4 text-lg font-semibold text-gray-600">Loading TeXMathPro Catalog...</p>
     </div>
 
+    <!-- Error Message -->
     <div id="error-message" class="hidden fixed inset-0 bg-red-100 flex items-center justify-center z-50 p-6">
         <div class="bg-white p-6 rounded-lg shadow-xl border-2 border-red-500 max-w-lg">
             <h2 class="text-xl font-bold text-red-700 mb-3">Data Loading Error</h2>
@@ -53,8 +56,11 @@
     
     <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 hidden">
         
+        <!-- Header: Logo and Tagline -->
         <header class="mb-8 border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg relative">
             <div class="flex flex-col md:flex-row justify-center items-center px-4 pt-4 md:px-8">
+                <!-- Logo/Title Area -->
+                <!-- FIX: Removed 'md:text-left' to ensure content is centered on all screen sizes -->
                 <div class="text-center mb-4 md:mb-0"> 
                     <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block hover:opacity-90 transition duration-150">
                         <img src="https://i.imgur.com/kiFfMas.jpeg" 
@@ -67,8 +73,10 @@
             </div>
         </header>
 
+        <!-- Main Content Area: Filters and Products -->
         <div class="flex flex-col lg:flex-row gap-8">
             
+            <!-- Filter Sidebar (Responsive to Mobile) -->
             <aside id="filter-sidebar" class="w-full lg:w-64 bg-white p-6 rounded-xl shadow-lg h-full lg:sticky lg:top-8 custom-scrollbar">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Filter Materials</h2>
                 
@@ -78,17 +86,23 @@
                 </div>
                 
                 <div class="space-y-6">
+                    <!-- Grade Level Filter -->
                     <div id="filter-grade-level">
                         <h3 class="font-semibold text-lg text-blue-700 mb-3">Grade Level</h3>
-                        </div>
+                        <!-- Filter buttons rendered here -->
+                    </div>
 
+                    <!-- Topic Filter -->
                     <div id="filter-topic">
                         <h3 class="font-semibold text-lg text-blue-700 mb-3">Topic</h3>
-                        </div>
+                        <!-- Filter buttons rendered here -->
+                    </div>
 
+                    <!-- Product Type Filter -->
                     <div id="filter-product-type">
                         <h3 class="font-semibold text-lg text-blue-700 mb-3">Resource Type</h3>
-                        </div>
+                        <!-- Filter buttons rendered here -->
+                    </div>
                 </div>
                 
                 <button id="clear-filters" class="w-full mt-6 py-2 px-4 bg-gray-500 text-white font-semibold rounded-lg shadow hover:bg-gray-600 transition duration-150">
@@ -96,11 +110,11 @@
                 </button>
             </aside>
 
+            <!-- Product Listing -->
             <main class="flex-1">
-                <div id="freebie-list" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-                    </div>
                 <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    </div>
+                    <!-- Product cards will be injected here -->
+                </div>
                 
                 <div id="no-results" class="hidden text-center p-12 bg-white rounded-xl shadow-lg mt-8">
                     <p class="text-2xl font-semibold text-gray-600">No materials matched your search or filters.</p>
@@ -229,30 +243,6 @@
                 ProductType: null
             }
         };
-
-        // NEW: Static FREEBIE data
-        const FREEBIE_PRODUCTS = [
-            {
-                ProductID: 'FREE001',
-                ProductTitle: 'Polynomial Operations Practice Sheet (FREE)',
-                GradeLevel: '8',
-                Topic: 'Polynomials',
-                ProductType: 'Worksheet',
-                ShortDescription: 'A free, single-page worksheet with 10 problems on adding, subtracting, and multiplying polynomials. Perfect for a quick review or homework.',
-                ProductPagePath: 'https://link-to-free-polynomial-sheet.com', // **Replace with actual link**
-                ImageURL: 'https://placehold.co/400x300/f97316/ffffff?text=Freebie+Polynomial',
-            },
-            {
-                ProductID: 'FREE002',
-                ProductTitle: 'High School Math Formulas Reference Card (FREE)',
-                GradeLevel: '9-12',
-                Topic: 'Review',
-                ProductType: 'Reference',
-                ShortDescription: 'A beautifully formatted, printable reference card containing essential formulas for Algebra, Geometry, and Pre-Calculus.',
-                ProductPagePath: 'https://link-to-free-formula-card.com', // **Replace with actual link**
-                ImageURL: 'https://placehold.co/400x300/f97316/ffffff?text=Freebie+Formula+Card',
-            }
-        ];
 
         // Configuration
         const SPREADSHEET_ID = '1LaJ0Hq7V-GPoCupAk-sm1i3e2k4cuEbRpo7eLKoJ9SQ';
@@ -397,7 +387,6 @@
         // --- FILTERING LOGIC ---
 
         function getUniqueValues(field) {
-            // FIX: Ensure freebies do not influence the filter options
             const values = allProducts.map(p => p[field]).filter(Boolean);
             const unique = [...new Set(values)].sort((a, b) => {
                 if (field === 'GradeLevel') {
@@ -537,50 +526,6 @@
 
         // --- RENDERING LOGIC ---
 
-        // NEW: Function to render a Freebie Card
-        function renderFreebieCard(product) {
-            const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
-            
-            // GA Tracking for freebie access
-            const freebieClick = () => trackEvent('freebie_click', {
-                product_id: product.ProductID,
-                product_title: product.ProductTitle
-            });
-            
-            return `
-                <div class="product-card freebie-card bg-white rounded-xl overflow-hidden shadow-2xl border-4 border-amber-500 transform hover:scale-[1.01] transition duration-300">
-                    <div class="relative bg-amber-50 overflow-hidden h-48">
-                        <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/f97316/ffffff?text=FREEBIE'">
-                        
-                        <span class="absolute top-3 left-3 bg-amber-500 text-white text-md font-bold px-4 py-1 rounded-full shadow-lg z-10 animate-pulse">⭐ FREE OFFER!</span>
-                    </div>
-
-                    <div class="p-5">
-                        <h3 class="text-xl font-extrabold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
-                        
-                        <div class="flex flex-wrap gap-2 mt-2 text-xs font-medium">
-                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full">FREE</span>
-                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${product.Topic}</span>
-                            <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${product.ProductType}</span>
-                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${gradeText}</span>
-                        </div>
-
-                        <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
-
-                        <div class="mt-4 flex items-center justify-between">
-                            <div class="flex flex-col">
-                                <span class="text-3xl font-extrabold text-amber-600">FREE</span>
-                            </div>
-                            <a href="${product.ProductPagePath}" target="_blank" onclick="trackEvent('freebie_click', {product_id: '${product.ProductID}'})" class="px-5 py-2 bg-amber-500 text-white text-sm font-semibold rounded-lg shadow-xl hover:bg-amber-600 transition duration-150 transform hover:scale-105">
-                                Get Freebie
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-
         function renderProductCard(product) {
             const isDiscounted = product.IsDiscounted && product.PricePHPRegular > product.PricePHPDiscounted;
             const priceRegular = formatCurrency(product.PricePHPRegular);
@@ -596,15 +541,18 @@
 
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200">
+                    <!-- Image Area -->
                     <div class="relative bg-gray-100 overflow-hidden h-48">
                         <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/4A5568/ffffff?text=Image+Not+Found'">
                         
                         ${isDiscounted ? `<span class="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">${discountPercent}</span>` : ''}
                     </div>
 
+                    <!-- Details Area -->
                     <div class="p-5">
                         <h3 class="text-xl font-extrabold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
                         
+                        <!-- Metadata Chips -->
                         <div class="flex flex-wrap gap-2 mt-2 text-xs font-medium">
                             <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${product.Topic}</span>
                             <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${product.ProductType}</span>
@@ -613,6 +561,7 @@
 
                         <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
 
+                        <!-- Price & CTA -->
                         <div class="mt-4 flex items-center justify-between">
                             <div class="flex flex-col">
                                 ${isDiscounted 
@@ -631,22 +580,13 @@
 
         function renderProducts() {
             const filteredProducts = filterProducts();
-            const freebieContainer = document.getElementById('freebie-list'); // Get the new freebie container
             const listContainer = document.getElementById('product-list');
             const noResults = document.getElementById('no-results');
             
-            // 1. Render Freebies (Always visible and at the top)
-            freebieContainer.innerHTML = FREEBIE_PRODUCTS.map(renderFreebieCard).join('');
-            
-            // 2. Render Filtered Products
             listContainer.innerHTML = '';
 
             if (filteredProducts.length === 0) {
-                // Only show no results if the freebies aren't the only thing on the page (or if the user searched/filtered)
-                // We assume if freebies are visible, the "page is not empty"
                 noResults.classList.remove('hidden');
-                
-                // If a search is active, the freebies will still be visible above the error message.
             } else {
                 noResults.classList.add('hidden');
                 filteredProducts.forEach(product => {
@@ -663,3 +603,4 @@
     </script>
 </body>
 </html>
+
