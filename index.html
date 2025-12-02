@@ -223,6 +223,13 @@
         // Global array for dynamic freebie products
         let freebieProducts = []; 
         
+        // Mapped filter fields for state management
+        const filterFieldMap = {
+            'grade': 'GradeLevel',
+            'topic': 'Topic',
+            'type': 'ProductType'
+        };
+
         let state = {
             searchQuery: '',
             filters: {
@@ -279,8 +286,8 @@
         
         // NEW FUNCTION: Handle Share Click
         function handleShareClick(productPagePath, productId, event) {
-            event.preventDefault(); // Stop the link navigation
-            event.stopPropagation(); // Prevent card hover/other events if possible
+            event.preventDefault(); 
+            event.stopPropagation(); 
 
             const shareButton = event.currentTarget;
             const linkToCopy = productPagePath; 
@@ -292,7 +299,6 @@
                     const originalText = shareButton.innerHTML;
                     
                     // Simple text change for confirmation
-                    // Using an icon for visual interest
                     shareButton.innerHTML = '<span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!</span>';
                     shareButton.classList.remove('bg-gray-400', 'hover:bg-gray-500');
                     shareButton.classList.add('bg-green-600', 'hover:bg-green-700');
@@ -334,6 +340,32 @@
         
         // Expose the function globally so it can be called from the inline onclick attribute
         window.handleShareClick = handleShareClick; 
+
+        // NEW FUNCTION: Parses URL parameters and updates the global state
+        function parseUrlFilters() {
+            const params = new URLSearchParams(window.location.search);
+            let hasFilters = false;
+
+            // 1. Handle Search Query
+            const search = params.get('search');
+            if (search) {
+                state.searchQuery = decodeURIComponent(search).toLowerCase().trim();
+                hasFilters = true;
+            }
+
+            // 2. Handle Category Filters
+            for (const paramKey in filterFieldMap) {
+                const stateKey = filterFieldMap[paramKey];
+                const value = params.get(paramKey);
+                if (value) {
+                    state.filters[stateKey] = decodeURIComponent(value);
+                    hasFilters = true;
+                }
+            }
+
+            // Return true if any filter was found in the URL
+            return hasFilters;
+        }
 
 
         // Data Fetching and Processing
@@ -423,6 +455,9 @@
                 // The remaining products go into allProducts for filtering
                 allProducts = rawProducts.slice(2);
                 
+                // NEW: Parse URL parameters *before* initializing filters and rendering
+                parseUrlFilters();
+
                 initFilters();
                 renderProducts();
 
@@ -458,13 +493,18 @@
         function initFilters() {
             // New structure to correctly map the data field name to the HTML ID
             const filterMap = [
-                { field: 'GradeLevel', id: 'filter-grade-level' },
-                { field: 'Topic', id: 'filter-topic' },
-                { field: 'ProductType', id: 'filter-product-type' }
+                { field: 'GradeLevel', id: 'filter-grade-level', paramKey: 'grade' },
+                { field: 'Topic', id: 'filter-topic', paramKey: 'topic' },
+                { field: 'ProductType', id: 'filter-product-type', paramKey: 'type' }
             ];
 
-            filterMap.forEach(({ field, id }) => {
-                // FIX 1: Use the correct, hyphenated HTML ID
+            // 1. Initialize Search Input based on state
+            const searchInput = document.getElementById('search');
+            searchInput.value = state.searchQuery;
+            searchInput.addEventListener('input', handleSearchInput);
+
+
+            filterMap.forEach(({ field, id, paramKey }) => {
                 const container = document.getElementById(id);
                 if (!container) {
                     console.warn(`Filter container not found for ID: ${id}`);
@@ -473,10 +513,8 @@
 
                 const values = getUniqueValues(field);
                 
-                // Ensure we only proceed if there are actual unique values
                 if (values.length === 0) return; 
 
-                // Clear any previous buttons, but keep the H3 title
                 const existingButtonContainer = container.querySelector('.filter-button-container');
                 if (existingButtonContainer) {
                     existingButtonContainer.remove();
@@ -492,12 +530,17 @@
                     button.dataset.field = field;
                     button.dataset.value = value;
                     button.addEventListener('click', handleFilterClick);
+                    
+                    // NEW: Check if this filter is active from the URL/state
+                    if (state.filters[field] === value) {
+                        button.classList.add('active-filter');
+                    }
+                    
                     buttonContainer.appendChild(button);
                 });
                 container.appendChild(buttonContainer);
             });
             
-            document.getElementById('search').addEventListener('input', handleSearchInput);
             document.getElementById('clear-filters').addEventListener('click', clearAllFilters);
         }
 
@@ -561,6 +604,7 @@
                 
                 const search = state.searchQuery;
                 if (search) {
+                    // Check search query against Title and Tags
                     const searchArea = `${product.ProductTitle} ${product.Tags}`.toLowerCase();
                     if (!searchArea.includes(search)) return false;
                 }
@@ -717,7 +761,7 @@
             // 2. Render Filtered Products
             listContainer.innerHTML = '';
 
-            if (filteredProducts.length === 0 && state.searchQuery !== '') {
+            if (filteredProducts.length === 0 && (state.searchQuery !== '' || Object.values(state.filters).some(f => f !== null))) {
                 // Only show no results if search/filters are active AND no main products found
                 noResults.classList.remove('hidden');
             } else {
