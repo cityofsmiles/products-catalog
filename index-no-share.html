@@ -7,13 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- PWA Setup (Implemented via JavaScript blobs below to adhere to single-file constraint) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="theme-color" content="#2c5282">
 
-    <!-- Google Analytics GA4 Tracking Snippet -->
-    <!-- YOUR ACTUAL MEASUREMENT ID IS NOW INSTALLED: G-0BXPTH0XNR -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-0BXPTH0XNR"></script>
     <script>
       // Initialize dataLayer globally
@@ -32,11 +29,12 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #edf2f7; }
         .filter-button { transition: background-color 0.15s; }
         .active-filter { background-color: #2c5282 !important; color: white !important; font-weight: 600; }
+        /* FREEBIE specific style */
+        .freebie-card { border: 3px solid #f97316; } /* Orange border for emphasis */
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-    <!-- Loading Spinner -->
     <div id="loading" class="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center z-50">
         <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -45,7 +43,6 @@
         <p class="mt-4 text-lg font-semibold text-gray-600">Loading TeXMathPro Catalog...</p>
     </div>
 
-    <!-- Error Message -->
     <div id="error-message" class="hidden fixed inset-0 bg-red-100 flex items-center justify-center z-50 p-6">
         <div class="bg-white p-6 rounded-lg shadow-xl border-2 border-red-500 max-w-lg">
             <h2 class="text-xl font-bold text-red-700 mb-3">Data Loading Error</h2>
@@ -56,11 +53,8 @@
     
     <div id="app" class="max-w-7xl mx-auto p-4 md:p-8 hidden">
         
-        <!-- Header: Logo and Tagline -->
         <header class="mb-8 border-b-4 border-blue-900 pb-6 bg-white rounded-b-xl shadow-lg relative">
             <div class="flex flex-col md:flex-row justify-center items-center px-4 pt-4 md:px-8">
-                <!-- Logo/Title Area -->
-                <!-- FIX: Removed 'md:text-left' to ensure content is centered on all screen sizes -->
                 <div class="text-center mb-4 md:mb-0"> 
                     <a href="#" onclick="clearAllFilters(event); return false;" class="inline-block hover:opacity-90 transition duration-150">
                         <img src="https://i.imgur.com/kiFfMas.jpeg" 
@@ -73,10 +67,8 @@
             </div>
         </header>
 
-        <!-- Main Content Area: Filters and Products -->
         <div class="flex flex-col lg:flex-row gap-8">
             
-            <!-- Filter Sidebar (Responsive to Mobile) -->
             <aside id="filter-sidebar" class="w-full lg:w-64 bg-white p-6 rounded-xl shadow-lg h-full lg:sticky lg:top-8 custom-scrollbar">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Filter Materials</h2>
                 
@@ -86,23 +78,17 @@
                 </div>
                 
                 <div class="space-y-6">
-                    <!-- Grade Level Filter -->
                     <div id="filter-grade-level">
                         <h3 class="font-semibold text-lg text-blue-700 mb-3">Grade Level</h3>
-                        <!-- Filter buttons rendered here -->
-                    </div>
+                        </div>
 
-                    <!-- Topic Filter -->
                     <div id="filter-topic">
                         <h3 class="font-semibold text-lg text-blue-700 mb-3">Topic</h3>
-                        <!-- Filter buttons rendered here -->
-                    </div>
+                        </div>
 
-                    <!-- Product Type Filter -->
                     <div id="filter-product-type">
                         <h3 class="font-semibold text-lg text-blue-700 mb-3">Resource Type</h3>
-                        <!-- Filter buttons rendered here -->
-                    </div>
+                        </div>
                 </div>
                 
                 <button id="clear-filters" class="w-full mt-6 py-2 px-4 bg-gray-500 text-white font-semibold rounded-lg shadow hover:bg-gray-600 transition duration-150">
@@ -110,11 +96,11 @@
                 </button>
             </aside>
 
-            <!-- Product Listing -->
             <main class="flex-1">
+                <div id="freebie-list" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+                    </div>
                 <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <!-- Product cards will be injected here -->
-                </div>
+                    </div>
                 
                 <div id="no-results" class="hidden text-center p-12 bg-white rounded-xl shadow-lg mt-8">
                     <p class="text-2xl font-semibold text-gray-600">No materials matched your search or filters.</p>
@@ -234,6 +220,8 @@
 
         // Global State
         let allProducts = [];
+        // Global array for dynamic freebie products
+        let freebieProducts = []; 
         
         let state = {
             searchQuery: '',
@@ -313,8 +301,8 @@
                 }
 
                 const cols = data.table.cols.map(c => c.label);
-                const products = [];
-
+                const rawProducts = []; // Temporarily hold ALL products
+                
                 // UPDATED headerMap: using findColumnIndex for flexibility
                 const headerMap = {
                     ProductID: findColumnIndex(cols, ['ProductID', 'Product ID']),
@@ -341,17 +329,19 @@
                     }
 
                     const isDiscountedRaw = getCellValue(row, headerMap.IsDiscounted);
-                    const isDiscounted = String(isDiscountedRaw).toLowerCase() === 'true';
-                    
+                    // Use regular price to determine if the discounted item is the 'FREE' item (0.01)
                     const regularPriceRaw = getCellValue(row, headerMap.PricePHPRegular);
                     const discountedPriceRaw = getCellValue(row, headerMap.PricePHPDiscounted);
                     
                     const regularPrice = typeof regularPriceRaw === 'number' ? regularPriceRaw : parseFloat(regularPriceRaw) || 0;
                     const discountedPrice = typeof discountedPriceRaw === 'number' ? discountedPriceRaw : parseFloat(discountedPriceRaw) || regularPrice;
 
+                    // UPDATED: Check for explicit IsDiscounted OR if the discounted price is 0.01 (the freebie marker)
+                    const isDiscounted = String(isDiscountedRaw).toLowerCase() === 'true' || discountedPrice === 0.01;
+
 
                     if (getCellValue(row, headerMap.ProductTitle) && regularPrice > 0) {
-                         products.push({
+                         rawProducts.push({
                             ProductID: getCellValue(row, headerMap.ProductID),
                             ProductTitle: getCellValue(row, headerMap.ProductTitle),
                             GradeLevel: getCellValue(row, headerMap.GradeLevel),
@@ -370,7 +360,10 @@
                     }
                 });
 
-                allProducts = products;
+                // Separate the first two products into freebieProducts
+                freebieProducts = rawProducts.slice(0, 2);
+                // The remaining products go into allProducts for filtering
+                allProducts = rawProducts.slice(2);
                 
                 initFilters();
                 renderProducts();
@@ -387,6 +380,7 @@
         // --- FILTERING LOGIC ---
 
         function getUniqueValues(field) {
+            // Filters only use the main products
             const values = allProducts.map(p => p[field]).filter(Boolean);
             const unique = [...new Set(values)].sort((a, b) => {
                 if (field === 'GradeLevel') {
@@ -526,33 +520,104 @@
 
         // --- RENDERING LOGIC ---
 
+        // Function to render a Freebie Card (uses 0.01 logic)
+        function renderFreebieCard(product) {
+            // Logic to determine if it's visually FREE (PricePHPDiscounted is exactly 0.01)
+            const isVisuallyFree = product.PricePHPDiscounted === 0.01;
+            
+            const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
+            
+            const priceDisplay = isVisuallyFree ? 
+                '<span class="text-3xl font-extrabold text-amber-600">FREE</span>' : 
+                `<span class="text-xs text-gray-500 line-through">${formatCurrency(product.PricePHPRegular)}</span><span class="text-2xl font-extrabold text-red-600">${formatCurrency(product.PricePHPDiscounted)}</span>`;
+            
+            const ctaText = isVisuallyFree ? 'Get Freebie' : 'View & Buy';
+            const ctaClass = isVisuallyFree ? 'bg-amber-500 text-white shadow-xl hover:bg-amber-600' : 'bg-blue-700 text-white shadow-md hover:bg-blue-800';
+            const cardClass = isVisuallyFree ? 'freebie-card border-4 border-amber-500 transform hover:scale-[1.01]' : 'border border-gray-200';
+            const badge = isVisuallyFree ? 
+                '<span class="absolute top-3 left-3 bg-amber-500 text-white text-md font-bold px-4 py-1 rounded-full shadow-lg z-10 animate-pulse">⭐ FREE OFFER!</span>' : 
+                '';
+
+            // If it's the 0.01 freebie, use the special GA event name
+            const gaEventName = isVisuallyFree ? 'freebie_click' : 'product_view_buy';
+            const gaTracking = `onclick="trackEvent('${gaEventName}', {product_id: '${product.ProductID}'})"`;
+
+            return `
+                <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl ${cardClass} transition duration-300">
+                    <div class="relative bg-gray-100 overflow-hidden h-48">
+                        <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/4A5568/ffffff?text=${isVisuallyFree ? 'FREEBIE' : 'Image+Not+Found'}'">
+                        ${badge}
+                    </div>
+
+                    <div class="p-5">
+                        <h3 class="text-xl font-extrabold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
+                        
+                        <div class="flex flex-wrap gap-2 mt-2 text-xs font-medium">
+                            ${isVisuallyFree ? '<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full">FREE</span>' : ''}
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${product.Topic}</span>
+                            <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${product.ProductType}</span>
+                            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${gradeText}</span>
+                        </div>
+
+                        <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
+
+                        <div class="mt-4 flex items-center justify-between">
+                            <div class="flex flex-col">
+                                ${priceDisplay}
+                            </div>
+                            <a href="${product.ProductPagePath}" target="_blank" ${gaTracking} class="px-5 py-2 text-sm font-semibold rounded-lg transition duration-150 transform hover:scale-105 ${ctaClass}">
+                                ${ctaText}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // We can simplify renderProductCard to just call renderFreebieCard since renderFreebieCard now handles both cases
         function renderProductCard(product) {
+            // Logic to determine if it's discounted but NOT freebie. 
+            // We use the same structure as renderFreebieCard for consistency, but
+            // for the products in the main list, we rely on the original logic.
+            
             const isDiscounted = product.IsDiscounted && product.PricePHPRegular > product.PricePHPDiscounted;
+            const isVisuallyFree = product.PricePHPDiscounted === 0.01;
             const priceRegular = formatCurrency(product.PricePHPRegular);
             const priceDiscounted = formatCurrency(product.PricePHPDiscounted);
             
             let discountPercent = '';
-            if (isDiscounted && product.PricePHPRegular > 0) {
+            if (isDiscounted && product.PricePHPRegular > 0 && !isVisuallyFree) {
                 const percentage = Math.round(((product.PricePHPRegular - product.PricePHPDiscounted) / product.PricePHPRegular) * 100);
                 discountPercent = `${percentage}% OFF`;
             }
 
             const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
+            
+            // Price Display Logic
+            let priceHTML;
+            if (isVisuallyFree) {
+                 priceHTML = `<span class="text-xs text-gray-500 line-through">${priceRegular}</span><span class="text-2xl font-extrabold text-amber-600">FREE</span>`;
+            } else if (isDiscounted) {
+                priceHTML = `<span class="text-xs text-gray-500 line-through">${priceRegular}</span><span class="text-2xl font-extrabold text-red-600">${priceDiscounted}</span>`;
+            } else {
+                priceHTML = `<span class="text-2xl font-extrabold text-blue-900">${priceRegular}</span>`;
+            }
+
 
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200">
-                    <!-- Image Area -->
                     <div class="relative bg-gray-100 overflow-hidden h-48">
                         <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/4A5568/ffffff?text=Image+Not+Found'">
                         
-                        ${isDiscounted ? `<span class="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">${discountPercent}</span>` : ''}
+                        ${isVisuallyFree ? 
+                            '<span class="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">FREE</span>' :
+                            (isDiscounted ? `<span class="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">${discountPercent}</span>` : '')
+                        }
                     </div>
 
-                    <!-- Details Area -->
                     <div class="p-5">
                         <h3 class="text-xl font-extrabold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
                         
-                        <!-- Metadata Chips -->
                         <div class="flex flex-wrap gap-2 mt-2 text-xs font-medium">
                             <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${product.Topic}</span>
                             <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${product.ProductType}</span>
@@ -561,13 +626,9 @@
 
                         <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
 
-                        <!-- Price & CTA -->
                         <div class="mt-4 flex items-center justify-between">
                             <div class="flex flex-col">
-                                ${isDiscounted 
-                                    ? `<span class="text-xs text-gray-500 line-through">${priceRegular}</span><span class="text-2xl font-extrabold text-red-600">${priceDiscounted}</span>` 
-                                    : `<span class="text-2xl font-extrabold text-blue-900">${priceRegular}</span>`
-                                }
+                                ${priceHTML}
                             </div>
                             <a href="${product.ProductPagePath}" target="_blank" class="px-5 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-800 transition duration-150 transform hover:scale-105">
                                 View & Buy
@@ -580,18 +641,32 @@
 
         function renderProducts() {
             const filteredProducts = filterProducts();
+            const freebieContainer = document.getElementById('freebie-list'); 
             const listContainer = document.getElementById('product-list');
             const noResults = document.getElementById('no-results');
             
+            // 1. Render Freebies (Always using the first two products fetched)
+            // Use renderProductCard for both. This is simpler than maintaining two rendering functions.
+            freebieContainer.innerHTML = freebieProducts.map(renderFreebieCard).join('');
+            
+            // 2. Render Filtered Products
             listContainer.innerHTML = '';
 
-            if (filteredProducts.length === 0) {
+            if (filteredProducts.length === 0 && state.searchQuery !== '') {
+                // Only show no results if search/filters are active AND no main products found
                 noResults.classList.remove('hidden');
             } else {
                 noResults.classList.add('hidden');
                 filteredProducts.forEach(product => {
                     listContainer.innerHTML += renderProductCard(product);
                 });
+            }
+
+             // Hide the freebie container if there are no freebies
+            if (freebieProducts.length === 0) {
+                freebieContainer.classList.add('hidden');
+            } else {
+                 freebieContainer.classList.remove('hidden');
             }
         }
 
@@ -603,4 +678,3 @@
     </script>
 </body>
 </html>
-

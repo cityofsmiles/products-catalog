@@ -276,6 +276,65 @@
             }
             return -1;
         };
+        
+        // NEW FUNCTION: Handle Share Click
+        function handleShareClick(productPagePath, productId, event) {
+            event.preventDefault(); // Stop the link navigation
+            event.stopPropagation(); // Prevent card hover/other events if possible
+
+            const shareButton = event.currentTarget;
+            const linkToCopy = productPagePath; 
+            
+            // 1. Copy to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(linkToCopy).then(() => {
+                    // 2. Visual Feedback
+                    const originalText = shareButton.innerHTML;
+                    
+                    // Simple text change for confirmation
+                    // Using an icon for visual interest
+                    shareButton.innerHTML = '<span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!</span>';
+                    shareButton.classList.remove('bg-gray-400', 'hover:bg-gray-500');
+                    shareButton.classList.add('bg-green-600', 'hover:bg-green-700');
+
+                    // 3. Revert after 2 seconds
+                    setTimeout(() => {
+                        shareButton.innerHTML = originalText;
+                        shareButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                        shareButton.classList.add('bg-gray-400', 'hover:bg-gray-500');
+                    }, 2000);
+                    
+                    // 4. GA Tracking
+                    trackEvent('share_link_copied', {
+                        product_id: productId,
+                        shared_url: linkToCopy,
+                        method: 'clipboard_api'
+                    });
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                    alert(`Failed to copy link. Please manually copy: ${linkToCopy}`);
+                });
+            } else {
+                // Fallback for older browsers (less reliable)
+                const tempInput = document.createElement('input');
+                tempInput.value = linkToCopy;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+                alert(`Link copied: ${linkToCopy}`);
+                
+                trackEvent('share_link_copied', {
+                    product_id: productId,
+                    shared_url: linkToCopy,
+                    method: 'fallback_alert'
+                });
+            }
+        }
+        
+        // Expose the function globally so it can be called from the inline onclick attribute
+        window.handleShareClick = handleShareClick; 
+
 
         // Data Fetching and Processing
         async function fetchProducts() {
@@ -329,7 +388,6 @@
                     }
 
                     const isDiscountedRaw = getCellValue(row, headerMap.IsDiscounted);
-                    // Use regular price to determine if the discounted item is the 'FREE' item (0.01)
                     const regularPriceRaw = getCellValue(row, headerMap.PricePHPRegular);
                     const discountedPriceRaw = getCellValue(row, headerMap.PricePHPDiscounted);
                     
@@ -520,11 +578,9 @@
 
         // --- RENDERING LOGIC ---
 
-        // Function to render a Freebie Card (uses 0.01 logic)
         function renderFreebieCard(product) {
-            // Logic to determine if it's visually FREE (PricePHPDiscounted is exactly 0.01)
+            // Check if discounted price is exactly 0.01 (the freebie marker)
             const isVisuallyFree = product.PricePHPDiscounted === 0.01;
-            
             const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
             
             const priceDisplay = isVisuallyFree ? 
@@ -561,25 +617,28 @@
 
                         <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
 
-                        <div class="mt-4 flex items-center justify-between">
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
                             <div class="flex flex-col">
                                 ${priceDisplay}
                             </div>
-                            <a href="${product.ProductPagePath}" target="_blank" ${gaTracking} class="px-5 py-2 text-sm font-semibold rounded-lg transition duration-150 transform hover:scale-105 ${ctaClass}">
-                                ${ctaText}
-                            </a>
+                            <div class="flex space-x-2">
+                                <button onclick="handleShareClick('${product.ProductPagePath}', '${product.ProductID}', event)" 
+                                        class="share-button px-3 py-2 bg-gray-400 text-white text-sm font-semibold rounded-lg shadow hover:bg-gray-500 transition duration-150 transform hover:scale-105">
+                                    <svg class="w-4 h-4 inline-block align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.88 12.834 9 12.296 9 11.5c0-1.042-.16-2.075-.477-3.033M12 7h1.5a4 4 0 014 4v1m-4-7h2m-4 13h2M8.684 13.342c-.305.464-.627.915-.992 1.341a4.343 4.343 0 00-.776 1.956 2.33 2.33 0 01-2.22 2.19M18.823 10C17.755 10 17 9.317 17 8.5c0-.818.755-1.5 1.823-1.5s1.823.682 1.823 1.5c0 .818-.755 1.5-1.823 1.5z"></path></svg>
+                                    Share
+                                </button>
+                                <a href="${product.ProductPagePath}" target="_blank" ${gaTracking} class="px-5 py-2 text-sm font-semibold rounded-lg transition duration-150 transform hover:scale-105 ${ctaClass}">
+                                    ${ctaText}
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // We can simplify renderProductCard to just call renderFreebieCard since renderFreebieCard now handles both cases
+
         function renderProductCard(product) {
-            // Logic to determine if it's discounted but NOT freebie. 
-            // We use the same structure as renderFreebieCard for consistency, but
-            // for the products in the main list, we rely on the original logic.
-            
             const isDiscounted = product.IsDiscounted && product.PricePHPRegular > product.PricePHPDiscounted;
             const isVisuallyFree = product.PricePHPDiscounted === 0.01;
             const priceRegular = formatCurrency(product.PricePHPRegular);
@@ -626,13 +685,20 @@
 
                         <p class="mt-3 text-sm text-gray-600 line-clamp-3 min-h-[60px]">${product.ShortDescription}</p>
 
-                        <div class="mt-4 flex items-center justify-between">
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
                             <div class="flex flex-col">
                                 ${priceHTML}
                             </div>
-                            <a href="${product.ProductPagePath}" target="_blank" class="px-5 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-800 transition duration-150 transform hover:scale-105">
-                                View & Buy
-                            </a>
+                            <div class="flex space-x-2">
+                                <button onclick="handleShareClick('${product.ProductPagePath}', '${product.ProductID}', event)" 
+                                        class="share-button px-3 py-2 bg-gray-400 text-white text-sm font-semibold rounded-lg shadow hover:bg-gray-500 transition duration-150 transform hover:scale-105">
+                                    <svg class="w-4 h-4 inline-block align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.88 12.834 9 12.296 9 11.5c0-1.042-.16-2.075-.477-3.033M12 7h1.5a4 4 0 014 4v1m-4-7h2m-4 13h2M8.684 13.342c-.305.464-.627.915-.992 1.341a4.343 4.343 0 00-.776 1.956 2.33 2.33 0 01-2.22 2.19M18.823 10C17.755 10 17 9.317 17 8.5c0-.818.755-1.5 1.823-1.5s1.823.682 1.823 1.5c0 .818-.755 1.5-1.823 1.5z"></path></svg>
+                                    Share
+                                </button>
+                                <a href="${product.ProductPagePath}" target="_blank" class="px-5 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-800 transition duration-150 transform hover:scale-105">
+                                    View & Buy
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -646,7 +712,6 @@
             const noResults = document.getElementById('no-results');
             
             // 1. Render Freebies (Always using the first two products fetched)
-            // Use renderProductCard for both. This is simpler than maintaining two rendering functions.
             freebieContainer.innerHTML = freebieProducts.map(renderFreebieCard).join('');
             
             // 2. Render Filtered Products
