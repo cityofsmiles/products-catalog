@@ -275,7 +275,7 @@
             return '';
         };
         
-        // NEW UTILITY: Finds the column index by checking common label variations.
+        // UTILITY: Finds the column index by checking common label variations.
         const findColumnIndex = (cols, potentialLabels) => {
             for (const label of potentialLabels) {
                 const index = cols.indexOf(label);
@@ -284,13 +284,20 @@
             return -1;
         };
         
-        // NEW FUNCTION: Handle Share Click
-        function handleShareClick(productPagePath, productId, event) {
+        // NEW UTILITY: Gets the current URL path and query string.
+        function getFilterUrl() {
+            // This is the current full URL including the query string (e.g., ?grade=8&topic=Algebra)
+            return window.location.origin + window.location.pathname + window.location.search;
+        }
+
+        // UPDATED FUNCTION: Handle Share Click now uses getFilterUrl()
+        function handleShareClick(productId, event) {
             event.preventDefault(); 
             event.stopPropagation(); 
 
             const shareButton = event.currentTarget;
-            const linkToCopy = productPagePath; 
+            // Get the current URL with filters applied
+            const linkToCopy = getFilterUrl();
             
             // 1. Copy to clipboard
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -311,8 +318,9 @@
                     }, 2000);
                     
                     // 4. GA Tracking
-                    trackEvent('share_link_copied', {
-                        product_id: productId,
+                    trackEvent('share_current_view_copied', {
+                        // We still pass the product ID, even though the link is to the filtered view
+                        product_id: productId, 
                         shared_url: linkToCopy,
                         method: 'clipboard_api'
                     });
@@ -330,7 +338,7 @@
                 document.body.removeChild(tempInput);
                 alert(`Link copied: ${linkToCopy}`);
                 
-                trackEvent('share_link_copied', {
+                trackEvent('share_current_view_copied', {
                     product_id: productId,
                     shared_url: linkToCopy,
                     method: 'fallback_alert'
@@ -341,7 +349,7 @@
         // Expose the function globally so it can be called from the inline onclick attribute
         window.handleShareClick = handleShareClick; 
 
-        // NEW FUNCTION: Parses URL parameters and updates the global state
+        // FUNCTION: Parses URL parameters and updates the global state
         function parseUrlFilters() {
             const params = new URLSearchParams(window.location.search);
             let hasFilters = false;
@@ -455,7 +463,7 @@
                 // The remaining products go into allProducts for filtering
                 allProducts = rawProducts.slice(2);
                 
-                // NEW: Parse URL parameters *before* initializing filters and rendering
+                // Parse URL parameters *before* initializing filters and rendering
                 parseUrlFilters();
 
                 initFilters();
@@ -531,7 +539,7 @@
                     button.dataset.value = value;
                     button.addEventListener('click', handleFilterClick);
                     
-                    // NEW: Check if this filter is active from the URL/state
+                    // Check if this filter is active from the URL/state
                     if (state.filters[field] === value) {
                         button.classList.add('active-filter');
                     }
@@ -642,6 +650,7 @@
             const gaEventName = isVisuallyFree ? 'freebie_click' : 'product_view_buy';
             const gaTracking = `onclick="trackEvent('${gaEventName}', {product_id: '${product.ProductID}'})"`;
 
+            // IMPORTANT: The handleShareClick now takes only the ProductID for GA tracking, as the URL is fetched dynamically.
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl ${cardClass} transition duration-300">
                     <div class="relative bg-gray-100 overflow-hidden h-48">
@@ -666,7 +675,7 @@
                                 ${priceDisplay}
                             </div>
                             <div class="flex space-x-2">
-                                <button onclick="handleShareClick('${product.ProductPagePath}', '${product.ProductID}', event)" 
+                                <button onclick="handleShareClick('${product.ProductID}', event)" 
                                         class="share-button px-3 py-2 bg-gray-400 text-white text-sm font-semibold rounded-lg shadow hover:bg-gray-500 transition duration-150 transform hover:scale-105">
                                     <svg class="w-4 h-4 inline-block align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.88 12.834 9 12.296 9 11.5c0-1.042-.16-2.075-.477-3.033M12 7h1.5a4 4 0 014 4v1m-4-7h2m-4 13h2M8.684 13.342c-.305.464-.627.915-.992 1.341a4.343 4.343 0 00-.776 1.956 2.33 2.33 0 01-2.22 2.19M18.823 10C17.755 10 17 9.317 17 8.5c0-.818.755-1.5 1.823-1.5s1.823.682 1.823 1.5c0 .818-.755 1.5-1.823 1.5z"></path></svg>
                                     Share
@@ -707,6 +716,7 @@
             }
 
 
+            // IMPORTANT: The handleShareClick now takes only the ProductID for GA tracking, as the URL is fetched dynamically.
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200">
                     <div class="relative bg-gray-100 overflow-hidden h-48">
@@ -734,7 +744,7 @@
                                 ${priceHTML}
                             </div>
                             <div class="flex space-x-2">
-                                <button onclick="handleShareClick('${product.ProductPagePath}', '${product.ProductID}', event)" 
+                                <button onclick="handleShareClick('${product.ProductID}', event)" 
                                         class="share-button px-3 py-2 bg-gray-400 text-white text-sm font-semibold rounded-lg shadow hover:bg-gray-500 transition duration-150 transform hover:scale-105">
                                     <svg class="w-4 h-4 inline-block align-text-bottom" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.88 12.834 9 12.296 9 11.5c0-1.042-.16-2.075-.477-3.033M12 7h1.5a4 4 0 014 4v1m-4-7h2m-4 13h2M8.684 13.342c-.305.464-.627.915-.992 1.341a4.343 4.343 0 00-.776 1.956 2.33 2.33 0 01-2.22 2.19M18.823 10C17.755 10 17 9.317 17 8.5c0-.818.755-1.5 1.823-1.5s1.823.682 1.823 1.5c0 .818-.755 1.5-1.823 1.5z"></path></svg>
                                     Share
