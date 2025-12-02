@@ -220,7 +220,7 @@
 
         // Global State
         let allProducts = [];
-        // NEW: Global array for dynamic freebie products
+        // Global array for dynamic freebie products
         let freebieProducts = []; 
         
         let state = {
@@ -329,13 +329,15 @@
                     }
 
                     const isDiscountedRaw = getCellValue(row, headerMap.IsDiscounted);
-                    const isDiscounted = String(isDiscountedRaw).toLowerCase() === 'true';
-                    
+                    // Use regular price to determine if the discounted item is the 'FREE' item (0.01)
                     const regularPriceRaw = getCellValue(row, headerMap.PricePHPRegular);
                     const discountedPriceRaw = getCellValue(row, headerMap.PricePHPDiscounted);
                     
                     const regularPrice = typeof regularPriceRaw === 'number' ? regularPriceRaw : parseFloat(regularPriceRaw) || 0;
                     const discountedPrice = typeof discountedPriceRaw === 'number' ? discountedPriceRaw : parseFloat(discountedPriceRaw) || regularPrice;
+
+                    // UPDATED: Check for explicit IsDiscounted OR if the discounted price is 0.01 (the freebie marker)
+                    const isDiscounted = String(isDiscountedRaw).toLowerCase() === 'true' || discountedPrice === 0.01;
 
 
                     if (getCellValue(row, headerMap.ProductTitle) && regularPrice > 0) {
@@ -358,11 +360,8 @@
                     }
                 });
 
-                // NEW LOGIC: Separate the first two products into freebieProducts
-                freebieProducts = rawProducts.slice(0, 2).map(p => ({
-                    ...p, // Keep all existing properties
-                    isFreebie: true // Mark them explicitly
-                }));
+                // Separate the first two products into freebieProducts
+                freebieProducts = rawProducts.slice(0, 2);
                 // The remaining products go into allProducts for filtering
                 allProducts = rawProducts.slice(2);
                 
@@ -521,23 +520,40 @@
 
         // --- RENDERING LOGIC ---
 
-        // Function to render a Freebie Card (same as before, now uses the dynamic data)
+        // Function to render a Freebie Card (uses 0.01 logic)
         function renderFreebieCard(product) {
+            // Logic to determine if it's visually FREE (PricePHPDiscounted is exactly 0.01)
+            const isVisuallyFree = product.PricePHPDiscounted === 0.01;
+            
             const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
             
+            const priceDisplay = isVisuallyFree ? 
+                '<span class="text-3xl font-extrabold text-amber-600">FREE</span>' : 
+                `<span class="text-xs text-gray-500 line-through">${formatCurrency(product.PricePHPRegular)}</span><span class="text-2xl font-extrabold text-red-600">${formatCurrency(product.PricePHPDiscounted)}</span>`;
+            
+            const ctaText = isVisuallyFree ? 'Get Freebie' : 'View & Buy';
+            const ctaClass = isVisuallyFree ? 'bg-amber-500 text-white shadow-xl hover:bg-amber-600' : 'bg-blue-700 text-white shadow-md hover:bg-blue-800';
+            const cardClass = isVisuallyFree ? 'freebie-card border-4 border-amber-500 transform hover:scale-[1.01]' : 'border border-gray-200';
+            const badge = isVisuallyFree ? 
+                '<span class="absolute top-3 left-3 bg-amber-500 text-white text-md font-bold px-4 py-1 rounded-full shadow-lg z-10 animate-pulse">⭐ FREE OFFER!</span>' : 
+                '';
+
+            // If it's the 0.01 freebie, use the special GA event name
+            const gaEventName = isVisuallyFree ? 'freebie_click' : 'product_view_buy';
+            const gaTracking = `onclick="trackEvent('${gaEventName}', {product_id: '${product.ProductID}'})"`;
+
             return `
-                <div class="product-card freebie-card bg-white rounded-xl overflow-hidden shadow-2xl border-4 border-amber-500 transform hover:scale-[1.01] transition duration-300">
-                    <div class="relative bg-amber-50 overflow-hidden h-48">
-                        <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/f97316/ffffff?text=FREEBIE'">
-                        
-                        <span class="absolute top-3 left-3 bg-amber-500 text-white text-md font-bold px-4 py-1 rounded-full shadow-lg z-10 animate-pulse">⭐ FREE OFFER!</span>
+                <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl ${cardClass} transition duration-300">
+                    <div class="relative bg-gray-100 overflow-hidden h-48">
+                        <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/4A5568/ffffff?text=${isVisuallyFree ? 'FREEBIE' : 'Image+Not+Found'}'">
+                        ${badge}
                     </div>
 
                     <div class="p-5">
                         <h3 class="text-xl font-extrabold text-gray-900 line-clamp-2 min-h-[56px]">${product.ProductTitle}</h3>
                         
                         <div class="flex flex-wrap gap-2 mt-2 text-xs font-medium">
-                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full">FREE</span>
+                            ${isVisuallyFree ? '<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full">FREE</span>' : ''}
                             <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${product.Topic}</span>
                             <span class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">${product.ProductType}</span>
                             <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded-full">${gradeText}</span>
@@ -547,10 +563,10 @@
 
                         <div class="mt-4 flex items-center justify-between">
                             <div class="flex flex-col">
-                                <span class="text-3xl font-extrabold text-amber-600">FREE</span>
+                                ${priceDisplay}
                             </div>
-                            <a href="${product.ProductPagePath}" target="_blank" onclick="trackEvent('freebie_click', {product_id: '${product.ProductID}'})" class="px-5 py-2 bg-amber-500 text-white text-sm font-semibold rounded-lg shadow-xl hover:bg-amber-600 transition duration-150 transform hover:scale-105">
-                                Get Freebie
+                            <a href="${product.ProductPagePath}" target="_blank" ${gaTracking} class="px-5 py-2 text-sm font-semibold rounded-lg transition duration-150 transform hover:scale-105 ${ctaClass}">
+                                ${ctaText}
                             </a>
                         </div>
                     </div>
@@ -558,26 +574,45 @@
             `;
         }
 
-
+        // We can simplify renderProductCard to just call renderFreebieCard since renderFreebieCard now handles both cases
         function renderProductCard(product) {
+            // Logic to determine if it's discounted but NOT freebie. 
+            // We use the same structure as renderFreebieCard for consistency, but
+            // for the products in the main list, we rely on the original logic.
+            
             const isDiscounted = product.IsDiscounted && product.PricePHPRegular > product.PricePHPDiscounted;
+            const isVisuallyFree = product.PricePHPDiscounted === 0.01;
             const priceRegular = formatCurrency(product.PricePHPRegular);
             const priceDiscounted = formatCurrency(product.PricePHPDiscounted);
             
             let discountPercent = '';
-            if (isDiscounted && product.PricePHPRegular > 0) {
+            if (isDiscounted && product.PricePHPRegular > 0 && !isVisuallyFree) {
                 const percentage = Math.round(((product.PricePHPRegular - product.PricePHPDiscounted) / product.PricePHPRegular) * 100);
                 discountPercent = `${percentage}% OFF`;
             }
 
             const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
+            
+            // Price Display Logic
+            let priceHTML;
+            if (isVisuallyFree) {
+                 priceHTML = `<span class="text-xs text-gray-500 line-through">${priceRegular}</span><span class="text-2xl font-extrabold text-amber-600">FREE</span>`;
+            } else if (isDiscounted) {
+                priceHTML = `<span class="text-xs text-gray-500 line-through">${priceRegular}</span><span class="text-2xl font-extrabold text-red-600">${priceDiscounted}</span>`;
+            } else {
+                priceHTML = `<span class="text-2xl font-extrabold text-blue-900">${priceRegular}</span>`;
+            }
+
 
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200">
                     <div class="relative bg-gray-100 overflow-hidden h-48">
                         <img class="w-full h-full object-cover transition duration-300 ease-in-out hover:scale-105" src="${product.ImageURL}" alt="${product.ProductTitle}" onerror="this.onerror=null; this.src='https://placehold.co/400x300/4A5568/ffffff?text=Image+Not+Found'">
                         
-                        ${isDiscounted ? `<span class="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">${discountPercent}</span>` : ''}
+                        ${isVisuallyFree ? 
+                            '<span class="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">FREE</span>' :
+                            (isDiscounted ? `<span class="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md z-10">${discountPercent}</span>` : '')
+                        }
                     </div>
 
                     <div class="p-5">
@@ -593,10 +628,7 @@
 
                         <div class="mt-4 flex items-center justify-between">
                             <div class="flex flex-col">
-                                ${isDiscounted 
-                                    ? `<span class="text-xs text-gray-500 line-through">${priceRegular}</span><span class="text-2xl font-extrabold text-red-600">${priceDiscounted}</span>` 
-                                    : `<span class="text-2xl font-extrabold text-blue-900">${priceRegular}</span>`
-                                }
+                                ${priceHTML}
                             </div>
                             <a href="${product.ProductPagePath}" target="_blank" class="px-5 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-md hover:bg-blue-800 transition duration-150 transform hover:scale-105">
                                 View & Buy
@@ -614,6 +646,7 @@
             const noResults = document.getElementById('no-results');
             
             // 1. Render Freebies (Always using the first two products fetched)
+            // Use renderProductCard for both. This is simpler than maintaining two rendering functions.
             freebieContainer.innerHTML = freebieProducts.map(renderFreebieCard).join('');
             
             // 2. Render Filtered Products
