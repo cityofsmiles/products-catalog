@@ -220,6 +220,8 @@
 
         // Global State
         let allProducts = [];
+        // NEW: Global array for dynamic freebie products
+        let freebieProducts = []; 
         
         let state = {
             searchQuery: '',
@@ -229,30 +231,6 @@
                 ProductType: null
             }
         };
-
-        // NEW: Static FREEBIE data
-        const FREEBIE_PRODUCTS = [
-            {
-                ProductID: 'FREE001',
-                ProductTitle: 'Polynomial Operations Practice Sheet (FREE)',
-                GradeLevel: '8',
-                Topic: 'Polynomials',
-                ProductType: 'Worksheet',
-                ShortDescription: 'A free, single-page worksheet with 10 problems on adding, subtracting, and multiplying polynomials. Perfect for a quick review or homework.',
-                ProductPagePath: 'https://link-to-free-polynomial-sheet.com', // **Replace with actual link**
-                ImageURL: 'https://placehold.co/400x300/f97316/ffffff?text=Freebie+Polynomial',
-            },
-            {
-                ProductID: 'FREE002',
-                ProductTitle: 'High School Math Formulas Reference Card (FREE)',
-                GradeLevel: '9-12',
-                Topic: 'Review',
-                ProductType: 'Reference',
-                ShortDescription: 'A beautifully formatted, printable reference card containing essential formulas for Algebra, Geometry, and Pre-Calculus.',
-                ProductPagePath: 'https://link-to-free-formula-card.com', // **Replace with actual link**
-                ImageURL: 'https://placehold.co/400x300/f97316/ffffff?text=Freebie+Formula+Card',
-            }
-        ];
 
         // Configuration
         const SPREADSHEET_ID = '1LaJ0Hq7V-GPoCupAk-sm1i3e2k4cuEbRpo7eLKoJ9SQ';
@@ -323,8 +301,8 @@
                 }
 
                 const cols = data.table.cols.map(c => c.label);
-                const products = [];
-
+                const rawProducts = []; // Temporarily hold ALL products
+                
                 // UPDATED headerMap: using findColumnIndex for flexibility
                 const headerMap = {
                     ProductID: findColumnIndex(cols, ['ProductID', 'Product ID']),
@@ -361,7 +339,7 @@
 
 
                     if (getCellValue(row, headerMap.ProductTitle) && regularPrice > 0) {
-                         products.push({
+                         rawProducts.push({
                             ProductID: getCellValue(row, headerMap.ProductID),
                             ProductTitle: getCellValue(row, headerMap.ProductTitle),
                             GradeLevel: getCellValue(row, headerMap.GradeLevel),
@@ -380,7 +358,13 @@
                     }
                 });
 
-                allProducts = products;
+                // NEW LOGIC: Separate the first two products into freebieProducts
+                freebieProducts = rawProducts.slice(0, 2).map(p => ({
+                    ...p, // Keep all existing properties
+                    isFreebie: true // Mark them explicitly
+                }));
+                // The remaining products go into allProducts for filtering
+                allProducts = rawProducts.slice(2);
                 
                 initFilters();
                 renderProducts();
@@ -397,7 +381,7 @@
         // --- FILTERING LOGIC ---
 
         function getUniqueValues(field) {
-            // FIX: Ensure freebies do not influence the filter options
+            // Filters only use the main products
             const values = allProducts.map(p => p[field]).filter(Boolean);
             const unique = [...new Set(values)].sort((a, b) => {
                 if (field === 'GradeLevel') {
@@ -537,15 +521,9 @@
 
         // --- RENDERING LOGIC ---
 
-        // NEW: Function to render a Freebie Card
+        // Function to render a Freebie Card (same as before, now uses the dynamic data)
         function renderFreebieCard(product) {
             const gradeText = product.GradeLevel ? `Grade ${product.GradeLevel}` : 'All Grades';
-            
-            // GA Tracking for freebie access
-            const freebieClick = () => trackEvent('freebie_click', {
-                product_id: product.ProductID,
-                product_title: product.ProductTitle
-            });
             
             return `
                 <div class="product-card freebie-card bg-white rounded-xl overflow-hidden shadow-2xl border-4 border-amber-500 transform hover:scale-[1.01] transition duration-300">
@@ -631,27 +609,31 @@
 
         function renderProducts() {
             const filteredProducts = filterProducts();
-            const freebieContainer = document.getElementById('freebie-list'); // Get the new freebie container
+            const freebieContainer = document.getElementById('freebie-list'); 
             const listContainer = document.getElementById('product-list');
             const noResults = document.getElementById('no-results');
             
-            // 1. Render Freebies (Always visible and at the top)
-            freebieContainer.innerHTML = FREEBIE_PRODUCTS.map(renderFreebieCard).join('');
+            // 1. Render Freebies (Always using the first two products fetched)
+            freebieContainer.innerHTML = freebieProducts.map(renderFreebieCard).join('');
             
             // 2. Render Filtered Products
             listContainer.innerHTML = '';
 
-            if (filteredProducts.length === 0) {
-                // Only show no results if the freebies aren't the only thing on the page (or if the user searched/filtered)
-                // We assume if freebies are visible, the "page is not empty"
+            if (filteredProducts.length === 0 && state.searchQuery !== '') {
+                // Only show no results if search/filters are active AND no main products found
                 noResults.classList.remove('hidden');
-                
-                // If a search is active, the freebies will still be visible above the error message.
             } else {
                 noResults.classList.add('hidden');
                 filteredProducts.forEach(product => {
                     listContainer.innerHTML += renderProductCard(product);
                 });
+            }
+
+             // Hide the freebie container if there are no freebies
+            if (freebieProducts.length === 0) {
+                freebieContainer.classList.add('hidden');
+            } else {
+                 freebieContainer.classList.remove('hidden');
             }
         }
 
