@@ -233,6 +233,7 @@
         let state = {
             searchQuery: '',
             filters: {
+                ProductID: null, // NEW: Filter for a single product ID
                 GradeLevel: null,
                 Topic: null,
                 ProductType: null
@@ -284,24 +285,15 @@
             return -1;
         };
         
-        // NEW FUNCTION: Constructs a catalog URL filtered by the product's attributes.
+        // UPDATED FUNCTION: Constructs a catalog URL filtered by the ProductID.
         function buildProductFilterUrl(product) {
             const baseUrl = window.location.origin + window.location.pathname;
             const params = new URLSearchParams();
 
-            if (product.GradeLevel) {
-                // Ensure URL encoding for safety
-                params.append('grade', encodeURIComponent(product.GradeLevel));
+            // Use 'id' as the parameter key for ProductID
+            if (product.ProductID) {
+                params.append('id', encodeURIComponent(product.ProductID));
             }
-            if (product.Topic) {
-                params.append('topic', encodeURIComponent(product.Topic));
-            }
-            if (product.ProductType) {
-                params.append('type', encodeURIComponent(product.ProductType));
-            }
-            // If the product title contains a unique, non-common word, 
-            // you might add it here, but sticking to grade/topic/type is generally safer 
-            // for constructing a general, sharable link.
             
             const queryString = params.toString();
             return queryString ? `${baseUrl}?${queryString}` : baseUrl;
@@ -322,7 +314,7 @@
                 return;
             }
             
-            // 2. Generate the filtered URL based on product attributes
+            // 2. Generate the ProductID URL
             const linkToCopy = buildProductFilterUrl(product);
             
             // 3. Copy to clipboard
@@ -344,7 +336,7 @@
                     }, 2000);
                     
                     // 6. GA Tracking
-                    trackEvent('share_product_view_copied', {
+                    trackEvent('share_product_id_copied', {
                         product_id: productId, 
                         shared_url: linkToCopy,
                         method: 'clipboard_api'
@@ -363,7 +355,7 @@
                 document.body.removeChild(tempInput);
                 alert(`Link copied: ${linkToCopy}`);
                 
-                trackEvent('share_product_view_copied', {
+                trackEvent('share_product_id_copied', {
                     product_id: productId,
                     shared_url: linkToCopy,
                     method: 'fallback_alert'
@@ -374,10 +366,25 @@
         // Expose the function globally so it can be called from the inline onclick attribute
         window.handleShareClick = handleShareClick; 
 
-        // FUNCTION: Parses URL parameters and updates the global state
+        // UPDATED FUNCTION: Parses URL parameters and updates the global state
         function parseUrlFilters() {
             const params = new URLSearchParams(window.location.search);
             let hasFilters = false;
+            
+            // NEW: Handle ProductID parameter
+            const productId = params.get('id');
+            if (productId) {
+                state.filters.ProductID = decodeURIComponent(productId);
+                // Clear other filters when an ID is present to ensure only the product is shown
+                state.searchQuery = '';
+                state.filters.GradeLevel = null;
+                state.filters.Topic = null;
+                state.filters.ProductType = null;
+                hasFilters = true;
+                // Since an ID is present, we skip initialization of filter buttons initially
+                return true;
+            }
+
 
             // 1. Handle Search Query
             const search = params.get('search');
@@ -427,6 +434,9 @@
                 const cols = data.table.cols.map(c => c.label);
                 const rawProducts = []; // Temporarily hold ALL products
                 
+                // Parse URL parameters *before* initializing filters and rendering
+                const isProductIdFilterActive = parseUrlFilters(); 
+
                 // UPDATED headerMap: using findColumnIndex for flexibility
                 const headerMap = {
                     ProductID: findColumnIndex(cols, ['ProductID', 'Product ID']),
@@ -488,9 +498,7 @@
                 // The remaining products go into allProducts for filtering
                 allProducts = rawProducts.slice(2);
                 
-                // Parse URL parameters *before* initializing filters and rendering
-                parseUrlFilters();
-
+                // Initialize filters based on the *current* state (which might be the single product ID)
                 initFilters();
                 renderProducts();
 
@@ -524,7 +532,24 @@
         }
 
         function initFilters() {
-            // New structure to correctly map the data field name to the HTML ID
+            // If a ProductID is present in the URL, skip filter UI initialization
+            // This is because the filter UI (buttons/search) should only control the main catalog view.
+            if (state.filters.ProductID) {
+                document.getElementById('search').value = '';
+                document.getElementById('search').disabled = true;
+                document.getElementById('filter-grade-level').innerHTML = '';
+                document.getElementById('filter-topic').innerHTML = '';
+                document.getElementById('filter-product-type').innerHTML = '';
+                document.getElementById('clear-filters').disabled = true;
+                return;
+            } else {
+                 // Re-enable in case user navigates back to the root URL
+                document.getElementById('search').disabled = false;
+                document.getElementById('clear-filters').disabled = false;
+            }
+
+
+            // Normal filter initialization logic below:
             const filterMap = [
                 { field: 'GradeLevel', id: 'filter-grade-level', paramKey: 'grade' },
                 { field: 'Topic', id: 'filter-topic', paramKey: 'topic' },
@@ -546,12 +571,10 @@
 
                 const values = getUniqueValues(field);
                 
-                if (values.length === 0) return; 
+                // Clear existing buttons to prevent duplicates
+                container.querySelector('.filter-button-container')?.remove();
 
-                const existingButtonContainer = container.querySelector('.filter-button-container');
-                if (existingButtonContainer) {
-                    existingButtonContainer.remove();
-                }
+                if (values.length === 0) return; 
 
                 const buttonContainer = document.createElement('div');
                 buttonContainer.className = 'flex flex-wrap gap-2 filter-button-container';
@@ -614,15 +637,25 @@
         function clearAllFilters(event) {
             if(event) event.preventDefault(); 
 
+            // Clear state and URL, then re-render
             state.searchQuery = '';
-            document.getElementById('search').value = '';
-
             state.filters = {
+                ProductID: null, 
                 GradeLevel: null,
                 Topic: null,
                 ProductType: null
             };
             
+            // Clear URL query string
+            const url = window.location.origin + window.location.pathname;
+            window.history.pushState({}, document.title, url);
+
+
+            // Re-initialize UI
+            document.getElementById('search').value = '';
+            initFilters(); // Re-initialize filters for proper state/UI refresh
+            
+            // UI cleanup
             Object.values(document.querySelectorAll('.filter-button')).forEach(btn => btn.classList.remove('active-filter'));
             
             // GA Tracking
@@ -632,6 +665,13 @@
         }
 
         function filterProducts() {
+            // Priority 1: Filter by ProductID if present
+            if (state.filters.ProductID) {
+                const product = allProducts.find(p => p.ProductID === state.filters.ProductID) || freebieProducts.find(p => p.ProductID === state.filters.ProductID);
+                return product ? [product] : []; // Return an array with just the matched product or empty
+            }
+
+            // Priority 2: Normal catalog filtering
             return allProducts.filter(product => {
                 if (!product.InStock) return false;
                 
@@ -643,6 +683,9 @@
                 }
 
                 for (const field in state.filters) {
+                    // Skip ProductID filter and null filters
+                    if (field === 'ProductID' || state.filters[field] === null) continue;
+                    
                     const filterValue = state.filters[field];
                     if (filterValue && product[field] !== filterValue) {
                         return false;
@@ -790,27 +833,32 @@
             const listContainer = document.getElementById('product-list');
             const noResults = document.getElementById('no-results');
             
-            // 1. Render Freebies (Always using the first two products fetched)
-            freebieContainer.innerHTML = freebieProducts.map(renderFreebieCard).join('');
+            // 1. If filtering by ID, the freebie list is hidden, as it's meant for the main catalog view
+            if (state.filters.ProductID) {
+                freebieContainer.classList.add('hidden');
+            } else {
+                 // Re-enable in the normal catalog view, assuming freebieProducts has content
+                 if (freebieProducts.length > 0) {
+                     freebieContainer.innerHTML = freebieProducts.map(renderFreebieCard).join('');
+                     freebieContainer.classList.remove('hidden');
+                 } else {
+                     freebieContainer.classList.add('hidden');
+                 }
+            }
             
             // 2. Render Filtered Products
             listContainer.innerHTML = '';
 
-            if (filteredProducts.length === 0 && (state.searchQuery !== '' || Object.values(state.filters).some(f => f !== null))) {
-                // Only show no results if search/filters are active AND no main products found
+            // Determine if the filter criteria resulted in 0 products
+            const isNoResults = filteredProducts.length === 0 && (state.searchQuery !== '' || Object.values(state.filters).some(f => f !== null));
+            
+            if (isNoResults) {
                 noResults.classList.remove('hidden');
             } else {
                 noResults.classList.add('hidden');
                 filteredProducts.forEach(product => {
                     listContainer.innerHTML += renderProductCard(product);
                 });
-            }
-
-             // Hide the freebie container if there are no freebies
-            if (freebieProducts.length === 0) {
-                freebieContainer.classList.add('hidden');
-            } else {
-                 freebieContainer.classList.remove('hidden');
             }
         }
 
