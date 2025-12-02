@@ -284,25 +284,51 @@
             return -1;
         };
         
-        // NEW UTILITY: Gets the current URL path and query string.
-        function getFilterUrl() {
-            // This is the current full URL including the query string (e.g., ?grade=8&topic=Algebra)
-            return window.location.origin + window.location.pathname + window.location.search;
+        // NEW FUNCTION: Constructs a catalog URL filtered by the product's attributes.
+        function buildProductFilterUrl(product) {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const params = new URLSearchParams();
+
+            if (product.GradeLevel) {
+                // Ensure URL encoding for safety
+                params.append('grade', encodeURIComponent(product.GradeLevel));
+            }
+            if (product.Topic) {
+                params.append('topic', encodeURIComponent(product.Topic));
+            }
+            if (product.ProductType) {
+                params.append('type', encodeURIComponent(product.ProductType));
+            }
+            // If the product title contains a unique, non-common word, 
+            // you might add it here, but sticking to grade/topic/type is generally safer 
+            // for constructing a general, sharable link.
+            
+            const queryString = params.toString();
+            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
         }
 
-        // UPDATED FUNCTION: Handle Share Click now uses getFilterUrl()
+
+        // UPDATED FUNCTION: Handles the Share Click event.
         function handleShareClick(productId, event) {
             event.preventDefault(); 
             event.stopPropagation(); 
 
             const shareButton = event.currentTarget;
-            // Get the current URL with filters applied
-            const linkToCopy = getFilterUrl();
             
-            // 1. Copy to clipboard
+            // 1. Find the product
+            const product = allProducts.find(p => p.ProductID === productId) || freebieProducts.find(p => p.ProductID === productId);
+            if (!product) {
+                console.error('Product not found for sharing:', productId);
+                return;
+            }
+            
+            // 2. Generate the filtered URL based on product attributes
+            const linkToCopy = buildProductFilterUrl(product);
+            
+            // 3. Copy to clipboard
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(linkToCopy).then(() => {
-                    // 2. Visual Feedback
+                    // 4. Visual Feedback
                     const originalText = shareButton.innerHTML;
                     
                     // Simple text change for confirmation
@@ -310,16 +336,15 @@
                     shareButton.classList.remove('bg-gray-400', 'hover:bg-gray-500');
                     shareButton.classList.add('bg-green-600', 'hover:bg-green-700');
 
-                    // 3. Revert after 2 seconds
+                    // 5. Revert after 2 seconds
                     setTimeout(() => {
                         shareButton.innerHTML = originalText;
                         shareButton.classList.remove('bg-green-600', 'hover:bg-green-700');
                         shareButton.classList.add('bg-gray-400', 'hover:bg-gray-500');
                     }, 2000);
                     
-                    // 4. GA Tracking
-                    trackEvent('share_current_view_copied', {
-                        // We still pass the product ID, even though the link is to the filtered view
+                    // 6. GA Tracking
+                    trackEvent('share_product_view_copied', {
                         product_id: productId, 
                         shared_url: linkToCopy,
                         method: 'clipboard_api'
@@ -338,7 +363,7 @@
                 document.body.removeChild(tempInput);
                 alert(`Link copied: ${linkToCopy}`);
                 
-                trackEvent('share_current_view_copied', {
+                trackEvent('share_product_view_copied', {
                     product_id: productId,
                     shared_url: linkToCopy,
                     method: 'fallback_alert'
@@ -650,7 +675,7 @@
             const gaEventName = isVisuallyFree ? 'freebie_click' : 'product_view_buy';
             const gaTracking = `onclick="trackEvent('${gaEventName}', {product_id: '${product.ProductID}'})"`;
 
-            // IMPORTANT: The handleShareClick now takes only the ProductID for GA tracking, as the URL is fetched dynamically.
+            // The handleShareClick now calls the function with the ProductID
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl ${cardClass} transition duration-300">
                     <div class="relative bg-gray-100 overflow-hidden h-48">
@@ -716,7 +741,7 @@
             }
 
 
-            // IMPORTANT: The handleShareClick now takes only the ProductID for GA tracking, as the URL is fetched dynamically.
+            // The handleShareClick now calls the function with the ProductID
             return `
                 <div class="product-card bg-white rounded-xl overflow-hidden shadow-xl border border-gray-200">
                     <div class="relative bg-gray-100 overflow-hidden h-48">
